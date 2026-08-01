@@ -5673,8 +5673,8 @@ class Dashboard{
     const pad = new Array(labels.length-1).fill(null);
     const forecastData = [rows[rows.length-1].ending_total, ...forecast.map(f=>Math.round(f.value*10)/10)];
 
-    const GAIN_COLOR = '#4ade80'; // light green
-    const LOSS_COLOR = '#f87171'; // red
+    const GAIN_COLOR = '#86efac'; // light, soft green for gains
+    const LOSS_COLOR = '#f2a49f'; // muted, non-bold red for losses
     const isGain = i => rows[i] && (rows[i].gain_loss ?? 0) >= 0;
     const pointColor = i => isGain(i) ? GAIN_COLOR : LOSS_COLOR;
 
@@ -5684,19 +5684,19 @@ class Dashboard{
       data:{
         labels: allLabels,
         datasets:[
-          { label:'Beginning Stock', data: rows.map(r=>r.beginning_total), borderColor:'#22a5e0', backgroundColor:'rgba(34,165,224,0.08)', borderWidth:2, tension:0.3, pointRadius:2, fill:false },
+          { label:'Beginning Stock', data: rows.map(r=>r.beginning_total), borderColor:'#22a5e0', backgroundColor:'rgba(34,165,224,0.06)', borderWidth:2, tension:0.15, pointRadius:2, fill:false },
           {
             label:'Ending Stock (green = gain, red = loss)',
             data: rows.map(r=>r.ending_total),
-            borderWidth:3,
-            tension:0.25,
+            borderWidth:3.5,
+            tension:0.12,
             pointRadius:4,
             pointHoverRadius:6,
-            fill:true,
-            backgroundColor:'rgba(52,226,155,0.10)',
+            pointBorderWidth:1.5,
+            fill:false,
             borderColor: GAIN_COLOR, // fallback color; per-segment color set below
             pointBackgroundColor: rows.map((_,i)=>pointColor(i)),
-            pointBorderColor: rows.map((_,i)=>pointColor(i)),
+            pointBorderColor: tc.cardBg,
             segment:{
               borderColor: c => pointColor(c.p0DataIndex + 1), // color each segment by the day it's arriving at
             },
@@ -5974,6 +5974,10 @@ async function signInAndSync(){
 document.getElementById('cloudSignInBtn').addEventListener('click', () => {
   signInAndSync().catch(err => setCloudStatus('Unexpected error: ' + err.message, false));
 });
+
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
 </body>
 </html>
