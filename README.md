@@ -6,7 +6,7 @@ LPG Storage &amp; Production Monitoring Dashboard is an interactive web-based an
 
 The **LPG Storage & Production Monitoring Dashboard** is a web-based data analytics application designed to monitor and visualize LPG storage, production, inventory movements, and operational performance.
 
-The dashboard transforms raw production reports into meaningful insights through interactive charts, Key Performance Indicators (KPIs), and filtering tools. It enables users to track stock levels, purchases, withdrawals, storage gains/losses, and tank utilization for better operational decision-making. The dashboard is built as a self-contained HTML application that can run offline using embedded data. The footer also notes that it is based on uploaded production report data and is designed to work offline. :contentReference[oaicite:0]{index=0}
+The dashboard transforms raw production reports into meaningful insights through interactive charts, Key Performance Indicators (KPIs), and filtering tools. It enables users to track stock levels, purchases, withdrawals, storage gains/losses, and tank utilization for better operational decision-making. The dashboard is built as a self-contained HTML application that can run offline using embedded data. The footer also notes that it is based on uploaded production report data and is designed to work offline.
 
 ---
 
