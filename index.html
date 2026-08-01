@@ -64,7 +64,7 @@
   .theme-toggle:hover{ border-color:var(--accent); color:var(--text-primary); }
   .app{
     display:grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 270px 1fr;
     gap: var(--gap);
     max-width:1600px;
     margin:0 auto;
@@ -159,9 +159,13 @@
   body.light-theme input[type=date]{
     color-scheme: light; /* renders the native calendar icon/text black on light backgrounds */
   }
-  .date-row{ display:flex; gap:8px; }
-  .date-row > div{ flex:1; }
-  .date-row label{ font-size:10.5px; color:var(--text-faint); display:block; margin-bottom:4px; }
+  .date-row{ display:flex; gap:8px; flex-wrap:nowrap; align-items:flex-start; }
+  .date-row > div{ flex:1 1 0; min-width:0; }
+  .date-row label{ font-size:10.5px; color:var(--text-faint); display:block; margin-bottom:4px; white-space:nowrap; }
+  .date-row input[type=date]{
+    width:100%; min-width:0; box-sizing:border-box;
+    padding:7px 6px; font-size:11.5px;
+  }
   .reset-btn{
     width:100%; margin-top:4px; padding:9px; border-radius:8px; border:1px solid var(--border-soft);
     background:transparent; color:var(--text-secondary); font-size:12px; cursor:pointer;
@@ -382,9 +386,11 @@
 
     <div class="slicer-box">
       <h4>Cloud Sync (optional)</h4>
+      <div id="cloudUserLabel" style="font-size:11.5px; color:var(--accent); margin-bottom:8px; display:none;"></div>
       <input type="email" id="cloudEmail" placeholder="Email" autocomplete="username">
       <input type="password" id="cloudPassword" placeholder="Password" autocomplete="current-password">
       <button class="action-btn primary" id="cloudSignInBtn">☁ Sign In &amp; Sync</button>
+      <button class="action-btn" id="cloudSignOutBtn" style="display:none;">Sign Out</button>
       <div class="upload-status" id="cloudStatus">Optional. Dashboard works fully offline on the data below until you sign in to a connected Supabase project.</div>
     </div>
 
@@ -5375,7 +5381,16 @@ class Dashboard{
         parsed.total_yard_capacity = this.totalYardCapacity;
         this.loadData(parsed);
         this.initFilters();
-        this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" (sheet: ${sheetName}).`, true);
+        this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" (sheet: ${sheetName}). Checking cloud sync…`, true);
+        saveRecordsToCloud(parsed.records).then(result => {
+          if(result.ok){
+            this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" and saved to the cloud (${result.count} row${result.count===1?'':'s'}).`, true);
+          } else if(result.reason === 'not-signed-in'){
+            this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" locally only. Sign in under Cloud Sync above to also save this to Supabase.`, true);
+          } else {
+            this.setUploadStatus(`Loaded locally, but cloud save failed: ${result.reason}`, false);
+          }
+        });
       }catch(err){
         console.error(err);
         this.setUploadStatus(`Could not read this file: ${err.message}. Expecting the same layout as the original report (Date in col A, Tanks 1–10, Purchases, Withdrawals, Ending Stock).`, false);
@@ -5869,10 +5884,11 @@ document.getElementById('authUsername').addEventListener('keydown', e=>{ if(e.ke
 const dashboard = new Dashboard(DATA);
 
 // ---------------------------------------------------------------------------
-// OPTIONAL CLOUD SYNC (Supabase) — entirely optional. The dashboard above
-// already works fully offline on the embedded DATA. Signing in here only
-// switches the same dashboard instance over to live cloud data; it never
-// creates a second dashboard or blocks anything if sign-in fails/skipped.
+// CLOUD SYNC (Supabase) — entirely optional. The dashboard above already
+// works fully offline on the embedded DATA. Signing in switches the same
+// dashboard instance over to live cloud data and turns on two-way sync:
+// uploads get pushed to the cloud, and cloud changes push back down via
+// real-time subscription. Nothing here blocks the dashboard if skipped.
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = 'https://rmxytydlrdrxnzskywbz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJteHl0eWRscmRyeG56c2t5d2J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzI5NDAsImV4cCI6MjEwMTEwODk0MH0.GucUMiAsLI7KGMndReUxfLlgHrREaGAuArRbkEo-QjE';
@@ -5885,6 +5901,16 @@ function setCloudStatus(msg, ok){
   if(!el) return;
   el.textContent = msg;
   el.className = 'upload-status ' + (ok ? 'ok' : 'err');
+}
+
+function updateCloudUI(isSignedIn, email){
+  document.getElementById('cloudEmail').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudPassword').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudSignInBtn').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudSignOutBtn').style.display = isSignedIn ? '' : 'none';
+  const label = document.getElementById('cloudUserLabel');
+  label.style.display = isSignedIn ? '' : 'none';
+  label.textContent = isSignedIn ? `☁ Connected as ${email}` : '';
 }
 
 function getSupabaseClient(){
@@ -5928,7 +5954,7 @@ async function syncFromCloud(){
     .order('report_date', { ascending: true });
 
   if(error){ setCloudStatus('Sync failed: ' + error.message, false); return; }
-  if(!data || data.length === 0){ setCloudStatus('Connected — no cloud reports found yet. Still showing local data.', true); return; }
+  if(!data || data.length === 0){ setCloudStatus('Connected — no cloud reports found yet. Upload a report to populate it.', true); return; }
 
   const records = data.map(r => ({
     date: r.report_date,
@@ -5945,6 +5971,32 @@ async function syncFromCloud(){
   dashboard.loadData(buildAggregatesFromRecords(records));
   dashboard.initFilters();
   setCloudStatus(`Synced ${records.length} day(s) from the cloud. Live updates are on.`, true);
+}
+
+// Pushes freshly-parsed upload records into Supabase. Returns a small result
+// object instead of throwing, so the upload flow can decide what to tell the
+// user (not signed in vs. a real save failure are different messages).
+async function saveRecordsToCloud(records){
+  const client = getSupabaseClient();
+  if(!client) return { ok:false, reason:'Supabase not available' };
+  const { data: sessionData } = await client.auth.getSession();
+  if(!sessionData || !sessionData.session) return { ok:false, reason:'not-signed-in' };
+
+  const user = sessionData.session.user;
+  const rows = records.map(r => ({
+    report_date: r.date,
+    beginning_total: r.beginning_total,
+    ending_total: r.ending_total,
+    gain_loss: r.gain_loss,
+    purchases: r.purchases,
+    withdrawals: r.withdrawals,
+    tanks_end: r.tanks_end,
+    uploaded_by: user.id,
+  }));
+
+  const { error } = await client.from('daily_reports').upsert(rows, { onConflict: 'report_date' });
+  if(error) return { ok:false, reason: error.message };
+  return { ok:true, count: rows.length };
 }
 
 function subscribeRealtime(){
@@ -5967,13 +6019,41 @@ async function signInAndSync(){
   const { error } = await client.auth.signInWithPassword({ email, password });
   if(error){ setCloudStatus('Login failed: ' + error.message, false); return; }
 
+  updateCloudUI(true, email);
   await syncFromCloud();
   subscribeRealtime();
+}
+
+async function signOutCloud(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  await client.auth.signOut();
+  if(realtimeChannel){ client.removeChannel(realtimeChannel); realtimeChannel = null; }
+  updateCloudUI(false, '');
+  setCloudStatus('Signed out. Uploads will stay local-only until you sign in again.', true);
+}
+
+// On page load, silently pick up an existing Supabase session (if the browser
+// already has one) so people don't have to log in again on every visit.
+async function initCloudSession(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  const { data } = await client.auth.getSession();
+  if(data && data.session){
+    updateCloudUI(true, data.session.user.email);
+    setCloudStatus('Restored your previous session. Syncing…', true);
+    await syncFromCloud();
+    subscribeRealtime();
+  }
 }
 
 document.getElementById('cloudSignInBtn').addEventListener('click', () => {
   signInAndSync().catch(err => setCloudStatus('Unexpected error: ' + err.message, false));
 });
+document.getElementById('cloudSignOutBtn').addEventListener('click', () => {
+  signOutCloud().catch(err => setCloudStatus('Unexpected error: ' + err.message, false));
+});
+initCloudSession();
 </script>
 </body>
 </html>
