@@ -1,0 +1,6356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LPG Storage & Production Monitoring Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg-app:#0b1512;
+    --bg-header: linear-gradient(135deg,#0f2b1f 0%, #123626 60%, #0a1f16 100%);
+    --bg-card:#101f19;
+    --bg-card-alt:#0d1a15;
+    --border-soft: rgba(56,224,150,0.14);
+    --accent:#34e29b;
+    --accent-dim:#1d7a56;
+    --accent-soft: rgba(52,226,155,0.12);
+    --text-primary:#eafff2;
+    --text-secondary:#8fb5a4;
+    --text-faint:#5c7a6d;
+    --positive:#4ade80;
+    --negative:#f87171;
+    --warning:#facc15;
+    --radius:14px;
+    --gap:18px;
+    --shadow: 0 4px 18px rgba(0,0,0,0.35);
+  }
+  body.light-theme{
+    --bg-app:#f6ead9;
+    --bg-header: linear-gradient(135deg,#fff8ee 0%, #f9e8cf 60%, #f3dab3 100%);
+    --bg-card:#fffaf2;
+    --bg-card-alt:#fdf1de;
+    --border-soft: rgba(180,110,40,0.18);
+    --accent:#d9782d;
+    --accent-dim:#a85a1f;
+    --accent-soft: rgba(217,120,45,0.12);
+    --text-primary:#402c17;
+    --text-secondary:#7a5a3a;
+    --text-faint:#a4855f;
+    --positive:#6f8f2e;
+    --negative:#c0432c;
+    --warning:#b8860b;
+    --shadow: 0 4px 18px rgba(120,75,20,0.1);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background: radial-gradient(circle at 20% 0%, #0e241c 0%, var(--bg-app) 45%);
+    color:var(--text-primary);
+    min-height:100vh;
+    transition: background .2s ease, color .2s ease;
+  }
+  body.light-theme{
+    background: radial-gradient(circle at 20% 0%, #fff8ee 0%, var(--bg-app) 45%);
+  }
+  .theme-toggle{
+    display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px;
+    background:rgba(255,255,255,0.05); border:1px solid var(--border-soft);
+    color:var(--text-secondary); cursor:pointer; font-size:12.5px; z-index:1; white-space:nowrap;
+  }
+  .theme-toggle:hover{ border-color:var(--accent); color:var(--text-primary); }
+  .app{
+    display:grid;
+    grid-template-columns: 270px 1fr;
+    gap: var(--gap);
+    max-width:1600px;
+    margin:0 auto;
+    padding: var(--gap);
+  }
+  /* ---------- HEADER ---------- */
+  .header{
+    grid-column: 1 / -1;
+    background: var(--bg-header);
+    border:1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding:22px 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:14px;
+    box-shadow: var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .header::after{
+    content:"";
+    position:absolute; inset:0;
+    background: radial-gradient(600px 120px at 85% -20%, rgba(52,226,155,0.18), transparent 70%);
+    pointer-events:none;
+  }
+  .header-title{
+    display:flex; align-items:center; gap:14px;
+  }
+  .header-title .icon{
+    width:44px;height:44px;border-radius:12px;
+    background:linear-gradient(135deg,var(--accent),#0d8f5c);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px; box-shadow:0 0 24px rgba(52,226,155,0.35);
+  }
+  .header h1{
+    font-size:21px; font-weight:700; letter-spacing:0.4px; margin:0;
+  }
+  .header .subtitle{
+    font-size:12.5px; color:var(--text-secondary); margin-top:3px;
+  }
+  .header-meta{
+    display:flex; gap:22px; flex-wrap:wrap; z-index:1;
+  }
+  .meta-pill{
+    background:rgba(255,255,255,0.05);
+    border:1px solid var(--border-soft);
+    padding:8px 14px; border-radius:10px;
+    font-size:12.5px; color:var(--text-secondary);
+    display:flex; flex-direction:column; gap:2px; min-width:110px;
+  }
+  .meta-pill b{ color:var(--text-primary); font-size:14px; }
+
+  /* ---------- SIDEBAR (SLICERS) ---------- */
+  .sidebar{
+    display:flex; flex-direction:column; gap: var(--gap);
+  }
+  .slicer-box{
+    background:var(--bg-card);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius);
+    padding:16px 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .slicer-box h4{
+    margin:0 0 12px; font-size:11.5px; text-transform:uppercase; letter-spacing:0.8px;
+    color:var(--accent); display:flex; align-items:center; gap:6px;
+  }
+  .slicer-box h4::before{
+    content:""; width:6px; height:6px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+  }
+  .chip-grid{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    padding:7px 10px; font-size:12px; border-radius:8px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--border-soft);
+    color:var(--text-secondary); cursor:pointer; transition:all .15s ease; user-select:none;
+  }
+  .chip:hover{ background:rgba(52,226,155,0.1); color:var(--text-primary); }
+  .chip.active{
+    background:var(--accent); color:#03140c; border-color:var(--accent); font-weight:600;
+  }
+  .slicer-box select, .slicer-box input[type=date], .slicer-box input[type=email], .slicer-box input[type=password]{
+    width:100%; padding:8px 10px; border-radius:8px; margin-bottom:8px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--border-soft);
+    color:var(--text-primary); font-size:12.5px;
+  }
+  input[type=date]{
+    color-scheme: dark; /* renders the native calendar icon/text white on dark backgrounds */
+  }
+  body.light-theme input[type=date]{
+    color-scheme: light; /* renders the native calendar icon/text black on light backgrounds */
+  }
+  .date-row{ display:flex; gap:8px; flex-wrap:nowrap; align-items:flex-start; }
+  .date-row > div{ flex:1 1 0; min-width:0; }
+  .date-row label{ font-size:10.5px; color:var(--text-faint); display:block; margin-bottom:4px; white-space:nowrap; }
+  .date-row input[type=date]{
+    width:100%; min-width:0; box-sizing:border-box;
+    padding:7px 6px; font-size:11.5px;
+  }
+  .reset-btn{
+    width:100%; margin-top:4px; padding:9px; border-radius:8px; border:1px solid var(--border-soft);
+    background:transparent; color:var(--text-secondary); font-size:12px; cursor:pointer;
+  }
+  .reset-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .data-note{
+    font-size:11px; color:var(--text-faint); line-height:1.5; padding-top:4px; border-top:1px dashed var(--border-soft); margin-top:6px;
+  }
+
+  /* ---------- MAIN ---------- */
+  .main{ display:flex; flex-direction:column; gap: var(--gap); min-width:0; }
+
+  .kpi-row{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:var(--gap);
+  }
+  .kpi-card{
+    background:var(--bg-card); border:1px solid var(--border-soft); border-radius:var(--radius);
+    padding:18px 20px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  }
+  .kpi-card::before{
+    content:""; position:absolute; top:-30px; right:-30px; width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle, rgba(52,226,155,0.16), transparent 70%);
+  }
+  .kpi-label{ font-size:11.5px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px; }
+  .kpi-value{ font-size:26px; font-weight:700; color:var(--text-primary); line-height:1; }
+  .kpi-sub{ margin-top:9px; font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+  .kpi-sub.positive{ color:var(--positive); }
+  .kpi-sub.negative{ color:var(--negative); }
+  .badge{
+    font-size:10.5px; padding:2px 7px; border-radius:6px; background:rgba(52,226,155,0.14); color:var(--accent);
+  }
+
+  .grid-2{ display:grid; grid-template-columns: 1.4fr 1fr; gap: var(--gap); }
+  .grid-3{ display:grid; grid-template-columns: repeat(3,1fr); gap: var(--gap); }
+
+  .panel{
+    background:var(--bg-card); border:1px solid var(--border-soft); border-radius:var(--radius);
+    padding:18px 20px; box-shadow:var(--shadow); display:flex; flex-direction:column; min-width:0;
+  }
+  .panel-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .panel-head h3{ font-size:13.5px; margin:0; color:var(--text-primary); font-weight:600; }
+  .panel-head span.tag{ font-size:10.5px; color:var(--text-faint); }
+  .panel canvas{ max-height:280px; }
+  .panel.tall canvas{ max-height:320px; }
+
+  .tank-list{ display:flex; flex-direction:column; gap:10px; margin-top:2px; }
+  .tank-row{ display:grid; grid-template-columns: 56px 1fr 70px; align-items:center; gap:10px; font-size:12px; }
+  .tank-row .tname{ color:var(--text-secondary); font-weight:600; }
+  .tank-bar-track{ height:9px; border-radius:6px; background:rgba(255,255,255,0.06); overflow:hidden; }
+  .tank-bar-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg,var(--accent-dim),var(--accent)); }
+  .tank-row .tval{ text-align:right; color:var(--text-primary); font-variant-numeric:tabular-nums; }
+  .tank-row.low .tank-bar-fill{ background:linear-gradient(90deg,#7a2323,var(--negative)); }
+
+  .table-wrap{ overflow-x:auto; }
+  table.data-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .data-table thead th{
+    text-align:right; padding:9px 10px; border-bottom:2px solid rgba(255,255,255,0.08);
+    color:var(--text-secondary); font-weight:600; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.4px; white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  .data-table thead th:first-child, .data-table tbody td:first-child{ text-align:left; }
+  .data-table thead th:hover{ color:var(--accent); }
+  .data-table tbody td{ padding:8px 10px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.04); color:var(--text-primary); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .data-table tbody tr:hover{ background:rgba(52,226,155,0.05); }
+  .gl-pos{ color:var(--positive); font-weight:600; }
+  .gl-neg{ color:var(--negative); font-weight:600; }
+  .table-scroll{ max-height:340px; overflow-y:auto; }
+
+  footer{
+    grid-column: 1 / -1;
+    text-align:center; color:var(--text-faint); font-size:11.5px; padding:14px 4px 4px;
+  }
+  footer .credit-line{
+    margin-top:6px; font-size:11.5px; color:var(--text-secondary); letter-spacing:0.2px;
+  }
+  footer .credit-line strong{ color:var(--accent); font-weight:600; }
+
+  @media (max-width: 1100px){
+    .app{ grid-template-columns: 1fr; }
+    .kpi-row{ grid-template-columns: repeat(2,1fr); }
+    .grid-2, .grid-3{ grid-template-columns: 1fr; }
+  }
+
+  /* ---------- ACTION BUTTONS (upload / export) ---------- */
+  .action-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:9px; border-radius:8px; border:1px solid var(--border-soft);
+    background:rgba(255,255,255,0.04); color:var(--text-secondary); font-size:12px;
+    cursor:pointer; margin-bottom:8px;
+  }
+  .action-btn:last-child{ margin-bottom:0; }
+  .action-btn:hover{ border-color:var(--accent); color:var(--text-primary); }
+  .action-btn.primary{ background:var(--accent); color:#03140c; border-color:var(--accent); font-weight:600; }
+  .action-btn.primary:hover{ opacity:0.9; color:#03140c; }
+  input[type=file]{ display:none; }
+  .upload-status{ font-size:11px; margin-top:8px; line-height:1.5; }
+  .upload-status.ok{ color:var(--positive); }
+  .upload-status.err{ color:var(--negative); }
+  .kpi-row{ grid-template-columns:repeat(5,1fr); }
+  @media (max-width:1300px){ .kpi-row{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:1100px){ .kpi-row{ grid-template-columns:repeat(2,1fr); } }
+
+  /* ---------- PRINT ---------- */
+  /* ---------- HOVER BLINK EFFECT (all buttons/chips) ---------- */
+  @keyframes btn-blink{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:0.45; }
+  }
+  .action-btn:hover,
+  .reset-btn:hover,
+  .theme-toggle:hover,
+  .chip:hover,
+  .data-table thead th:hover{
+    animation: btn-blink 0.7s ease-in-out infinite;
+  }
+  .chip.active:hover{
+    animation: btn-blink 0.7s ease-in-out infinite;
+  }
+
+  /* ---------- ADMIN AUTH MODAL ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    align-items:center; justify-content:center; z-index:1000; backdrop-filter: blur(2px);
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--bg-card); border:1px solid var(--border-soft); border-radius:var(--radius);
+    box-shadow: var(--shadow); padding:26px 28px; width:320px; max-width:90vw; text-align:center;
+  }
+  .modal-icon{ font-size:28px; margin-bottom:6px; }
+  .modal-box h3{ margin:0 0 6px; font-size:15px; color:var(--text-primary); }
+  .modal-sub{ font-size:12px; color:var(--text-secondary); margin:0 0 16px; }
+  .modal-label{ display:block; text-align:left; font-size:11px; color:var(--text-faint); margin:0 0 4px; }
+  .modal-input{
+    width:100%; padding:9px 10px; border-radius:8px; margin-bottom:12px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--border-soft);
+    color:var(--text-primary); font-size:13px;
+  }
+  .modal-error{ font-size:11.5px; color:var(--negative); min-height:16px; margin-bottom:4px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+  .modal-actions .action-btn{ margin-bottom:0; }
+
+  @media print{
+    body{ background:#fff !important; color:#0e2a1f !important; }
+    .sidebar, .theme-toggle, .reset-btn, .action-btn, .chip, input, .table-scroll{ display:none !important; }
+    .slicer-box:has(.data-note){ display:block !important; }
+    .app{ grid-template-columns: 1fr !important; max-width:100%; }
+    .panel, .kpi-card, .header{ box-shadow:none !important; border:1px solid #ccc !important; background:#fff !important; }
+    .kpi-value, .header h1, .panel-head h3{ color:#0e2a1f !important; }
+    .table-wrap{ max-height:none !important; overflow:visible !important; }
+    canvas{ max-height:220px !important; }
+    .modal-overlay{ display:none !important; }
+  }
+  /* ================================================================
+     LAYERED PARALLAX HERO
+     ================================================================ */
+  #hero{
+    position:relative; isolation:isolate; overflow:hidden;
+    height:100svh; min-height:640px; width:100%;
+    background:#050b09;
+  }
+  #hero .parallax{ will-change:transform; }
+  #hero .hero-bg{
+    position:absolute; inset:0; z-index:0;
+    background:
+      radial-gradient(1200px 700px at 20% -10%, rgba(52,226,155,0.10), transparent 60%),
+      linear-gradient(180deg, #030807 0%, #06120d 45%, #0a1f16 100%);
+    transform: scale(1.14);
+  }
+  #hero .star-field{
+    position:absolute; left:50%; top:50%; z-index:3;
+    width:130vmax; height:130vmax; margin-left:-65vmax; margin-top:-65vmax;
+    pointer-events:none;
+  }
+  #hero .spin-sky{
+    position:absolute; inset:0; transform-origin:50% 50%;
+    animation: hero-spin-sky 220s linear infinite;
+  }
+  @keyframes hero-spin-sky{ to{ transform:rotate(360deg); } }
+  #hero .sky-star{
+    position:absolute; border-radius:50%; background:#bff3d6;
+    box-shadow:0 0 3px rgba(191,243,214,0.55);
+  }
+  #hero .glow{ position:absolute; inset-inline:0; z-index:4; pointer-events:none; }
+  #hero .glow-tight{ bottom:32%; height:34%; }
+  #hero .glow-wide{ bottom:26%; height:46%; z-index:5; }
+  #hero .glow-inner{
+    margin:0 auto; height:100%; border-radius:100%;
+    background:#34e29b;
+  }
+  #hero .glow-tight .glow-inner{ width:55%; opacity:0.16; filter:blur(100px); }
+  #hero .glow-wide .glow-inner{ width:88%; opacity:0.22; filter:blur(130px); }
+  #hero .twinkle{ position:absolute; inset:0; z-index:6; pointer-events:none; }
+  #hero .star{
+    position:absolute; border-radius:50%; background:#d7fbe6;
+    box-shadow:0 0 4px 1px rgba(157,236,196,0.85), 0 0 9px 2px rgba(157,236,196,0.45);
+    animation:hero-twinkle ease-in-out infinite;
+  }
+  @keyframes hero-twinkle{ 0%,100%{opacity:.25;} 50%{opacity:.9;} }
+  #hero .streaks{ position:absolute; inset:0; z-index:7; pointer-events:none; overflow:hidden; }
+  #hero .streak{
+    position:absolute; width:150px; height:2px;
+    background:linear-gradient(90deg,transparent,rgba(191,243,214,0.85) 72%,#fff);
+    filter:drop-shadow(0 0 6px rgba(157,236,196,0.9));
+    animation:hero-streak linear infinite;
+    opacity:0;
+  }
+  @keyframes hero-streak{
+    0%{ opacity:0; transform:translate(0,0); }
+    5%{ opacity:1; }
+    30%{ opacity:0; transform:translate(-260px,180px); }
+    100%{ opacity:0; }
+  }
+  #hero .headline-wrap{
+    position:absolute; inset:0; z-index:10;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding-top:16vh; pointer-events:none; text-align:center;
+  }
+  #hero .headline{
+    font-weight:800; text-transform:uppercase; letter-spacing:1px; line-height:0.92;
+    font-size:clamp(2rem, 7vw, 6.2rem); color:#eafff2; margin:0;
+    text-shadow:0 8px 40px rgba(3,8,7,0.55);
+  }
+  #hero .headline span{ display:block; color:#34e29b; font-size:0.5em; letter-spacing:3px; margin-bottom:10px; }
+  #hero .midground{
+    position:absolute; inset-inline:0; bottom:0; z-index:20; line-height:0;
+  }
+  #hero .midground svg{ width:112%; margin-left:-6%; display:block; }
+  #hero .hero-object{
+    position:absolute; bottom:0; right:2%; z-index:30;
+    width:clamp(220px, 34vw, 460px);
+  }
+  #hero .tank-bob{ animation:hero-tank-bob 6s ease-in-out infinite; transform-origin:50% 100%; }
+  @keyframes hero-tank-bob{
+    0%,100%{ transform:translateY(0) rotate(0); }
+    50%{ transform:translateY(-1.2%) rotate(-.2deg); }
+  }
+  #hero .hotspot{
+    position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px;
+    border:none; background:transparent; cursor:pointer; padding:0;
+  }
+  #hero .hotspot-dot{
+    position:absolute; inset:0; border-radius:50%; background:#34e29b;
+    box-shadow:0 0 0 3px rgba(52,226,155,0.25);
+  }
+  #hero .hotspot-ping{
+    position:absolute; inset:0; border-radius:50%; background:#34e29b;
+    animation:hero-ping 2.2s ease-out infinite;
+  }
+  @keyframes hero-ping{ 0%{transform:scale(1);opacity:0.55;} 100%{transform:scale(2.6);opacity:0;} }
+  #hero .hotspot-label{
+    position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+    white-space:nowrap; font-size:11px; color:#eafff2; background:rgba(5,15,12,0.9);
+    padding:4px 9px; border-radius:6px; opacity:0; transition:opacity .15s ease;
+    border:1px solid rgba(52,226,155,0.3);
+  }
+  #hero .hotspot:hover .hotspot-label,#hero .hotspot:focus .hotspot-label{ opacity:1; }
+  #hero .copy-layer{
+    position:absolute; inset-inline:0; bottom:0; z-index:40;
+    pointer-events:none; padding:0 24px 6vh;
+  }
+  #hero .copy-inner{ max-width:640px; margin:0 auto; text-align:center; }
+  #hero .eyebrow{
+    color:#86efac; font-size:12.5px; letter-spacing:2px; text-transform:uppercase;
+    font-weight:700; margin:0 0 10px;
+  }
+  #hero .copy-inner p{ color:#c7e6d6; font-size:14.5px; line-height:1.6; margin:0 0 22px; }
+  #hero .hero-cta{
+    pointer-events:auto; display:inline-flex; align-items:center; gap:8px;
+    background:#34e29b; color:#03140c; font-weight:700; font-size:14px;
+    padding:12px 22px; border-radius:10px; text-decoration:none;
+    box-shadow:0 8px 24px rgba(52,226,155,0.25); transition:transform .15s ease;
+  }
+  #hero .hero-cta:hover{ transform:translateY(-2px); }
+  @media (max-width:720px){
+    #hero .hero-object{ right:50%; transform:translateX(50%); width:min(70vw,320px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     LAYERED PARALLAX HERO
+     ================================================================ -->
+<section id="hero">
+  <div class="parallax hero-bg" data-depth-x="12" data-depth-y="8" data-scroll="-5"></div>
+
+  <div class="star-field" aria-hidden="true">
+    <div class="spin-sky" id="heroSpinStars"></div>
+  </div>
+
+  <div class="glow glow-tight parallax" data-depth-x="6" data-depth-y="3" data-scroll="-7"><div class="glow-inner"></div></div>
+  <div class="glow glow-wide parallax" data-depth-x="8" data-depth-y="4" data-scroll="-8"><div class="glow-inner"></div></div>
+
+  <div class="twinkle" id="heroTwinkleStars" aria-hidden="true"></div>
+  <div class="streaks" id="heroStreaks" aria-hidden="true"></div>
+
+  <div class="headline-wrap parallax" data-depth-x="20" data-depth-y="10" data-scroll="-26">
+    <h1 class="headline"><span>Real-Time Monitoring</span>LPG Storage &amp;<br>Production</h1>
+  </div>
+
+  <div class="midground parallax" data-depth-x="30" data-depth-y="0" data-scroll="0" aria-hidden="true">
+    <svg viewBox="0 0 1600 260" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="150" width="1600" height="110" fill="#04120b"/>
+      <g fill="#04120b">
+        <rect x="30" y="70" width="90" height="180" rx="6"/><ellipse cx="75" cy="70" rx="45" ry="20"/>
+        <rect x="150" y="110" width="70" height="140" rx="6"/><ellipse cx="185" cy="110" rx="35" ry="16"/>
+        <rect x="250" y="55" width="100" height="195" rx="6"/><ellipse cx="300" cy="55" rx="50" ry="22"/>
+        <rect x="380" y="95" width="60" height="155" rx="6"/><ellipse cx="410" cy="95" rx="30" ry="14"/>
+        <rect x="470" y="40" width="110" height="210" rx="6"/><ellipse cx="525" cy="40" rx="55" ry="24"/>
+        <rect x="610" y="100" width="65" height="150" rx="6"/><ellipse cx="642" cy="100" rx="32" ry="15"/>
+        <rect x="700" y="65" width="95" height="185" rx="6"/><ellipse cx="747" cy="65" rx="47" ry="20"/>
+        <rect x="820" y="115" width="55" height="135" rx="6"/><ellipse cx="847" cy="115" rx="27" ry="13"/>
+        <rect x="900" y="50" width="105" height="200" rx="6"/><ellipse cx="952" cy="50" rx="52" ry="22"/>
+        <rect x="1030" y="90" width="70" height="160" rx="6"/><ellipse cx="1065" cy="90" rx="35" ry="16"/>
+        <rect x="1120" y="60" width="90" height="190" rx="6"/><ellipse cx="1165" cy="60" rx="45" ry="20"/>
+        <rect x="1230" y="105" width="60" height="145" rx="6"/><ellipse cx="1260" cy="105" rx="30" ry="14"/>
+        <rect x="1310" y="45" width="100" height="205" rx="6"/><ellipse cx="1360" cy="45" rx="50" ry="22"/>
+        <rect x="1430" y="95" width="75" height="155" rx="6"/><ellipse cx="1467" cy="95" rx="37" ry="17"/>
+        <rect x="1520" y="70" width="80" height="180" rx="6"/><ellipse cx="1560" cy="70" rx="40" ry="18"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="hero-object">
+    <div class="tank-bob">
+      <svg viewBox="0 0 400 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Large LPG storage tank">
+        <defs>
+          <linearGradient id="tankBody" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0d2a1e"/>
+            <stop offset="45%" stop-color="#1d7a56"/>
+            <stop offset="55%" stop-color="#1d7a56"/>
+            <stop offset="100%" stop-color="#08170f"/>
+          </linearGradient>
+          <linearGradient id="tankDome" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#34e29b"/>
+            <stop offset="100%" stop-color="#0d2a1e"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="200" cy="120" rx="150" ry="60" fill="url(#tankDome)"/>
+        <rect x="50" y="100" width="300" height="360" fill="url(#tankBody)"/>
+        <ellipse cx="200" cy="460" rx="150" ry="40" fill="#08170f"/>
+        <rect x="50" y="195" width="300" height="6" fill="#04120b" opacity="0.5"/>
+        <rect x="50" y="290" width="300" height="6" fill="#04120b" opacity="0.5"/>
+        <rect x="50" y="385" width="300" height="6" fill="#04120b" opacity="0.5"/>
+        <rect x="20" y="150" width="14" height="290" fill="#04120b"/>
+        <g fill="none" stroke="#04120b" stroke-width="3">
+          <line x1="20" y1="180" x2="34" y2="180"/><line x1="20" y1="220" x2="34" y2="220"/>
+          <line x1="20" y1="260" x2="34" y2="260"/><line x1="20" y1="300" x2="34" y2="300"/>
+          <line x1="20" y1="340" x2="34" y2="340"/><line x1="20" y1="380" x2="34" y2="380"/>
+        </g>
+        <circle cx="200" cy="250" r="26" fill="#04120b" stroke="#34e29b" stroke-width="3"/>
+        <line x1="200" y1="250" x2="212" y2="236" stroke="#34e29b" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="200" cy="250" r="3" fill="#34e29b"/>
+      </svg>
+      <button type="button" class="hotspot" style="left:50%; top:48%;" aria-label="Live stock level gauge">
+        <span class="hotspot-ping"></span><span class="hotspot-dot"></span>
+        <span class="hotspot-label">Live stock &amp; ullage tracking</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="copy-layer">
+    <div class="copy-inner">
+      <p class="eyebrow">LPG Storage &amp; Production Monitoring Dashboard</p>
+      <p>Track tank levels, gain/loss, purchases, and withdrawals in real time \u2014 built from live production data, works fully offline.</p>
+      <a href="#dashboard" class="hero-cta">View Live Dashboard \u2193</a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  var spin = document.getElementById('heroSpinStars');
+  var frag = document.createDocumentFragment();
+  for (var i=0; i<180; i++){
+    var s = document.createElement('span');
+    s.className = 'sky-star';
+    var size = (Math.random()*2 + 0.6).toFixed(1);
+    s.style.width = size+'px'; s.style.height = size+'px';
+    s.style.left = (Math.random()*100)+'%'; s.style.top = (Math.random()*100)+'%';
+    s.style.opacity = (Math.random()*0.5+0.3).toFixed(2);
+    frag.appendChild(s);
+  }
+  spin.appendChild(frag);
+
+  var tw = document.getElementById('heroTwinkleStars');
+  var frag2 = document.createDocumentFragment();
+  for (var j=0; j<60; j++){
+    var t = document.createElement('span');
+    t.className = 'star';
+    var sz = (Math.random()*2.4 + 1).toFixed(1);
+    t.style.width = sz+'px'; t.style.height = sz+'px';
+    t.style.left = (Math.random()*100)+'%'; t.style.top = (Math.random()*55)+'%';
+    t.style.animationDuration = (Math.random()*3+2).toFixed(2)+'s';
+    t.style.animationDelay = (Math.random()*4).toFixed(2)+'s';
+    frag2.appendChild(t);
+  }
+  tw.appendChild(frag2);
+
+  var streaks = document.getElementById('heroStreaks');
+  for (var k=0; k<3; k++){
+    var st = document.createElement('span');
+    st.className = 'streak';
+    st.style.left = (10 + Math.random()*70)+'%';
+    st.style.top = (5 + Math.random()*30)+'%';
+    st.style.animationDuration = (5 + Math.random()*4)+'s';
+    st.style.animationDelay = (Math.random()*8)+'s';
+    streaks.appendChild(st);
+  }
+})();
+
+(function(){
+  var hero = document.getElementById('hero');
+  var layers = Array.prototype.slice.call(document.querySelectorAll('#hero .parallax'));
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!hero || !layers.length || reduced) return;
+
+  var tx=0, ty=0, cx=0, cy=0, scrollY=window.scrollY;
+
+  window.addEventListener('pointermove', function(e){
+    var r = hero.getBoundingClientRect();
+    tx = (e.clientX - r.left) / r.width - 0.5;
+    ty = (e.clientY - r.top) / r.height - 0.5;
+  }, { passive: true });
+
+  window.addEventListener('scroll', function(){ scrollY = window.scrollY; }, { passive: true });
+
+  var map = layers.map(function(el){
+    return {
+      el: el,
+      dx: parseFloat(el.dataset.depthX || '0'),
+      dy: parseFloat(el.dataset.depthY || '0'),
+      ds: parseFloat(el.dataset.scroll || '0') / 100
+    };
+  });
+
+  function frame(){
+    cx += (tx - cx) * 0.07;
+    cy += (ty - cy) * 0.07;
+    for (var i=0; i<map.length; i++){
+      var l = map[i];
+      var x = -cx * l.dx;
+      var y = -cy * l.dy + scrollY * l.ds;
+      l.el.style.transform = 'translate3d(' + x.toFixed(2) + 'px, ' + y.toFixed(2) + 'px, 0)';
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<div class="app" id="dashboard">
+
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-title">
+      <div class="icon">🛢️</div>
+      <div>
+        <h1>LPG STORAGE &amp; PRODUCTION MONITORING DASHBOARD</h1>
+        <div class="subtitle" id="subtitle-range">Loading period…</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-pill">Report Period<b id="meta-month">—</b></div>
+      <div class="meta-pill">Days Reported<b id="meta-days">—</b></div>
+      <div class="meta-pill">Tanks Monitored<b>10</b></div>
+      <div class="meta-pill">Last Update<b id="meta-latest">—</b></div>
+      <div class="theme-toggle" id="themeToggle">🌙 <span id="themeLabel">Dark Mode</span></div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR SLICERS -->
+  <div class="sidebar">
+    <div class="slicer-box">
+      <h4>Date Range</h4>
+      <div class="date-row">
+        <div><label>From</label><input type="date" id="dateFrom"></div>
+        <div><label>To</label><input type="date" id="dateTo"></div>
+      </div>
+      <button class="reset-btn" id="resetDates">Reset to full month</button>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Tank Select</h4>
+      <div class="chip-grid" id="tankChips"></div>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Purchase Source</h4>
+      <div class="chip-grid" id="sourceChips"></div>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Withdrawal Channel</h4>
+      <div class="chip-grid" id="channelChips"></div>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Refresh Data</h4>
+      <button class="action-btn primary" id="uploadTriggerBtn" type="button">⬆ Upload New Report</button>
+      <input type="file" id="fileUpload" accept=".xlsx,.xlsb,.xls,.csv">
+      <div style="font-size:10.5px; color:var(--text-faint); margin:-4px 0 8px; display:flex; align-items:center; gap:4px;">🔒 Admin password required</div>
+      <button class="action-btn" id="resetDataBtn">↺ Restore Original Data</button>
+      <div class="upload-status" id="uploadStatus">Expects the same column layout as the original monthly report (Date, Tanks 1–10, Purchases, Withdrawals, Ending Stock).</div>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Export</h4>
+      <button class="action-btn" id="exportExcelBtn">📊 Export to Excel</button>
+      <button class="action-btn" id="exportPdfBtn">🖨 Export to PDF</button>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:4px; display:flex; align-items:center; gap:4px;">🔒 Admin password required</div>
+    </div>
+
+    <div class="slicer-box">
+      <h4>Cloud Sync (optional)</h4>
+      <div id="cloudUserLabel" style="font-size:11.5px; color:var(--accent); margin-bottom:8px; display:none;"></div>
+      <input type="email" id="cloudEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="cloudPassword" placeholder="Password" autocomplete="current-password">
+      <button class="action-btn primary" id="cloudSignInBtn">☁ Sign In &amp; Sync</button>
+      <button class="action-btn" id="cloudSignOutBtn" style="display:none;">Sign Out</button>
+      <div class="upload-status" id="cloudStatus">Optional. Dashboard works fully offline on the data below until you sign in to a connected Supabase project.</div>
+    </div>
+
+    <div class="slicer-box">
+      <div class="data-note">
+        <b style="color:var(--warning)">Note:</b> Jan 1 – Apr 30, 2025 is illustrative/generated data added to demonstrate multi-month trends and is not from the uploaded workbook. May 1–25, 2025 is the real data from the originally uploaded production report (later May dates were blank/unreported in the source file, so excluded). Tank capacities: Tanks 1–4 = 150,000 each, Tanks 5–10 = 50,000 each (900,000 total). Units follow the source file as-is (unlabeled). "Projected" points on the trend chart are a simple linear extrapolation, not a statistical forecast model.
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Current Total Stock</div>
+        <div class="kpi-value" id="kpi-current">—</div>
+        <div class="kpi-sub" id="kpi-current-sub">as of latest reported day</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Yard Ullage</div>
+        <div class="kpi-value" id="kpi-ullage">—</div>
+        <div class="kpi-sub" id="kpi-ullage-sub">remaining capacity</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Purchases (Period)</div>
+        <div class="kpi-value" id="kpi-purchases">—</div>
+        <div class="kpi-sub" id="kpi-purchases-sub">across 4 marketers</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Withdrawals (Period)</div>
+        <div class="kpi-value" id="kpi-withdrawals">—</div>
+        <div class="kpi-sub" id="kpi-withdrawals-sub">across 4 channels</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Net Storage Gain / Loss</div>
+        <div class="kpi-value" id="kpi-netgl">—</div>
+        <div class="kpi-sub" id="kpi-netgl-sub">sum of daily variance</div>
+      </div>
+    </div>
+
+    <!-- ROW 2: trend + tank farm -->
+    <div class="grid-2">
+      <div class="panel tall">
+        <div class="panel-head">
+          <h3>GAIN &amp; LOSS (Beginning vs Ending of the Month)</h3>
+          <span class="tag">daily, selected range</span>
+        </div>
+        <div style="display:flex; gap:14px; align-items:center; font-size:11px; color:var(--text-faint); margin:-8px 0 10px;">
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#4ade80;display:inline-block;"></span> Gain day</span>
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:9px;height:9px;border-radius:50%;background:#f87171;display:inline-block;"></span> Loss day</span>
+        </div>
+        <canvas id="stockTrendChart"></canvas>
+      </div>
+      <div class="panel tall">
+        <div class="panel-head">
+          <h3>TANK FARM — CURRENT LEVELS &amp; ULLAGE</h3>
+          <span class="tag">latest day in range · % of rated capacity</span>
+        </div>
+        <div class="tank-list" id="tankList"></div>
+      </div>
+    </div>
+
+    <!-- ROW 3: gain/loss + purchases + withdrawals -->
+    <div class="grid-3">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>STORAGE GAIN / LOSS TRACKER</h3>
+          <span class="tag">daily variance</span>
+        </div>
+        <canvas id="gainLossChart"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>PURCHASES BY MARKETER</h3>
+          <span class="tag">period total</span>
+        </div>
+        <canvas id="purchaseDonut"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>WITHDRAWALS BY CHANNEL</h3>
+          <span class="tag">period total</span>
+        </div>
+        <canvas id="withdrawalBar"></canvas>
+      </div>
+    </div>
+
+    <!-- ROW 4: table -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>DAILY LOG — DETAIL TABLE</h3>
+        <span class="tag" id="table-count">— rows</span>
+      </div>
+      <div class="table-wrap table-scroll">
+        <table class="data-table" id="dataTable">
+          <thead>
+            <tr>
+              <th data-key="date">Date</th>
+              <th data-key="beginning_total">Beginning Stock</th>
+              <th data-key="total_purchases">Purchases</th>
+              <th data-key="total_withdrawals">Withdrawals</th>
+              <th data-key="ending_total">Ending Stock</th>
+              <th data-key="gain_loss">Gain / (Loss)</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    LPG Storage &amp; Production Monitoring Dashboard · Built from uploaded production report · Fully self-contained, works offline · Refresh by re-embedding updated data
+    <div class="credit-line">Project Author · Data Analyst · Developer: <strong>Jessie Rey Sagaysay</strong></div>
+  </footer>
+</div>
+
+<!-- ADMIN PASSWORD MODAL (gates Upload New Report and both Export buttons) -->
+<div class="modal-overlay" id="authModalOverlay">
+  <div class="modal-box">
+    <div class="modal-icon">🔒</div>
+    <h3>Admin Verification Required</h3>
+    <p class="modal-sub" id="authModalContext">Enter admin credentials to continue.</p>
+    <label class="modal-label">Username</label>
+    <input type="text" id="authUsername" class="modal-input" autocomplete="username" placeholder="Username">
+    <label class="modal-label">Password</label>
+    <input type="password" id="authPassword" class="modal-input" autocomplete="current-password" placeholder="Password">
+    <div class="modal-error" id="authError"></div>
+    <div class="modal-actions">
+      <button class="action-btn" id="authCancelBtn" type="button">Cancel</button>
+      <button class="action-btn primary" id="authSubmitBtn" type="button">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {
+  "records": [
+    {
+      "date": "2025-01-01",
+      "beginning_total": 550000.0,
+      "ending_total": 544500.6,
+      "gain_loss": -1457.2,
+      "purchases": {
+        "BRENT GAS": 103845.0,
+        "LIQUIGAZ": 50412.5,
+        "SOLANE": 22493.7,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16792.3,
+        "Smallbulk": 34875.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 65288.0
+      },
+      "tanks_end": {
+        "Tank 1": 124052.1,
+        "Tank 2": 123867.2,
+        "Tank 3": 51493.6,
+        "Tank 4": 62464.8,
+        "Tank 5": 22182.2,
+        "Tank 6": 39646.4,
+        "Tank 7": 38276.7,
+        "Tank 8": 38235.0,
+        "Tank 9": 24909.4,
+        "Tank 10": 19373.1
+      },
+      "total_purchases": 176751.2,
+      "total_withdrawals": 116955.4
+    },
+    {
+      "date": "2025-01-02",
+      "beginning_total": 544500.6,
+      "ending_total": 538194.4,
+      "gain_loss": -16187.0,
+      "purchases": {
+        "BRENT GAS": 186749.0,
+        "LIQUIGAZ": 55924.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16584.7,
+        "Smallbulk": 19414.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 72598.2
+      },
+      "tanks_end": {
+        "Tank 1": 72236.4,
+        "Tank 2": 100304.4,
+        "Tank 3": 109825.5,
+        "Tank 4": 66432.5,
+        "Tank 5": 34262.4,
+        "Tank 6": 23843.4,
+        "Tank 7": 30162.2,
+        "Tank 8": 41891.0,
+        "Tank 9": 40224.2,
+        "Tank 10": 19012.2
+      },
+      "total_purchases": 242673.0,
+      "total_withdrawals": 108597.6
+    },
+    {
+      "date": "2025-01-03",
+      "beginning_total": 538194.4,
+      "ending_total": 533612.7,
+      "gain_loss": -113.4,
+      "purchases": {
+        "BRENT GAS": 104715.2,
+        "LIQUIGAZ": 18219.8,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 14395.7,
+        "Pick-up": 20311.4,
+        "Cylinder Production": 72010.5
+      },
+      "tanks_end": {
+        "Tank 1": 116100.1,
+        "Tank 2": 95459.4,
+        "Tank 3": 59889.3,
+        "Tank 4": 58198.7,
+        "Tank 5": 24334.5,
+        "Tank 6": 40457.4,
+        "Tank 7": 37650.0,
+        "Tank 8": 39412.6,
+        "Tank 9": 40455.8,
+        "Tank 10": 21654.8
+      },
+      "total_purchases": 122935.0,
+      "total_withdrawals": 106717.6
+    },
+    {
+      "date": "2025-01-04",
+      "beginning_total": 533612.7,
+      "ending_total": 551803.4,
+      "gain_loss": -15838.6,
+      "purchases": {
+        "BRENT GAS": 69905.9,
+        "LIQUIGAZ": 66367.2,
+        "SOLANE": 26940.3,
+        "PETRON": 20927.3
+      },
+      "withdrawals": {
+        "BACKLOAD": 21615.1,
+        "Smallbulk": 76915.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 86715.5
+      },
+      "tanks_end": {
+        "Tank 1": 65917.7,
+        "Tank 2": 109019.3,
+        "Tank 3": 99761.5,
+        "Tank 4": 104213.2,
+        "Tank 5": 33458.2,
+        "Tank 6": 20403.4,
+        "Tank 7": 32897.2,
+        "Tank 8": 16594.4,
+        "Tank 9": 34932.2,
+        "Tank 10": 34606.4
+      },
+      "total_purchases": 184140.7,
+      "total_withdrawals": 185246.2
+    },
+    {
+      "date": "2025-01-05",
+      "beginning_total": 551803.4,
+      "ending_total": 546766.1,
+      "gain_loss": 7204.4,
+      "purchases": {
+        "BRENT GAS": 64486.7,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 8206.5,
+        "Smallbulk": 90185.6,
+        "Pick-up": 6419.9,
+        "Cylinder Production": 60775.2
+      },
+      "tanks_end": {
+        "Tank 1": 121415.9,
+        "Tank 2": 86885.6,
+        "Tank 3": 118163.2,
+        "Tank 4": 54222.6,
+        "Tank 5": 40193.9,
+        "Tank 6": 19709.8,
+        "Tank 7": 39990.4,
+        "Tank 8": 21957.8,
+        "Tank 9": 17894.7,
+        "Tank 10": 26332.2
+      },
+      "total_purchases": 64486.7,
+      "total_withdrawals": 165587.2
+    },
+    {
+      "date": "2025-01-06",
+      "beginning_total": 546766.1,
+      "ending_total": 503375.3,
+      "gain_loss": -2497.8,
+      "purchases": {
+        "BRENT GAS": 165709.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 26474.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 42.3,
+        "Smallbulk": 53768.4,
+        "Pick-up": 16546.9,
+        "Cylinder Production": 81638.4
+      },
+      "tanks_end": {
+        "Tank 1": 80909.2,
+        "Tank 2": 55784.2,
+        "Tank 3": 106526.8,
+        "Tank 4": 78004.2,
+        "Tank 5": 25537.9,
+        "Tank 6": 40739.7,
+        "Tank 7": 37089.1,
+        "Tank 8": 25151.0,
+        "Tank 9": 25406.1,
+        "Tank 10": 28227.0
+      },
+      "total_purchases": 192183.3,
+      "total_withdrawals": 151996.0
+    },
+    {
+      "date": "2025-01-07",
+      "beginning_total": 503375.3,
+      "ending_total": 511215.3,
+      "gain_loss": 22585.0,
+      "purchases": {
+        "BRENT GAS": 100480.1,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 38688.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7523.7,
+        "Smallbulk": 8034.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 74658.8
+      },
+      "tanks_end": {
+        "Tank 1": 101173.0,
+        "Tank 2": 85669.2,
+        "Tank 3": 83803.7,
+        "Tank 4": 65134.0,
+        "Tank 5": 28779.7,
+        "Tank 6": 40438.4,
+        "Tank 7": 37573.9,
+        "Tank 8": 20512.5,
+        "Tank 9": 18199.9,
+        "Tank 10": 29931.0
+      },
+      "total_purchases": 139168.1,
+      "total_withdrawals": 90217.0
+    },
+    {
+      "date": "2025-01-08",
+      "beginning_total": 511215.3,
+      "ending_total": 502265.0,
+      "gain_loss": 556.5,
+      "purchases": {
+        "BRENT GAS": 146588.2,
+        "LIQUIGAZ": 68742.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6121.1,
+        "Smallbulk": 80227.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 78491.9
+      },
+      "tanks_end": {
+        "Tank 1": 64741.5,
+        "Tank 2": 106521.3,
+        "Tank 3": 89708.7,
+        "Tank 4": 68866.0,
+        "Tank 5": 34389.0,
+        "Tank 6": 16339.4,
+        "Tank 7": 37022.3,
+        "Tank 8": 37551.8,
+        "Tank 9": 19143.0,
+        "Tank 10": 27982.0
+      },
+      "total_purchases": 215330.5,
+      "total_withdrawals": 164840.7
+    },
+    {
+      "date": "2025-01-09",
+      "beginning_total": 502265.0,
+      "ending_total": 494725.3,
+      "gain_loss": 12489.8,
+      "purchases": {
+        "BRENT GAS": 55177.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 23482.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16689.4,
+        "Smallbulk": 58613.4,
+        "Pick-up": 21850.9,
+        "Cylinder Production": 77174.2
+      },
+      "tanks_end": {
+        "Tank 1": 89641.0,
+        "Tank 2": 74880.2,
+        "Tank 3": 97300.0,
+        "Tank 4": 77845.7,
+        "Tank 5": 33962.0,
+        "Tank 6": 30439.6,
+        "Tank 7": 24269.5,
+        "Tank 8": 19326.6,
+        "Tank 9": 19052.4,
+        "Tank 10": 28008.2
+      },
+      "total_purchases": 78659.7,
+      "total_withdrawals": 174327.9
+    },
+    {
+      "date": "2025-01-10",
+      "beginning_total": 494725.3,
+      "ending_total": 496505.2,
+      "gain_loss": -16868.7,
+      "purchases": {
+        "BRENT GAS": 173162.7,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 27657.2,
+        "Pick-up": 15960.8,
+        "Cylinder Production": 34945.6
+      },
+      "tanks_end": {
+        "Tank 1": 75905.5,
+        "Tank 2": 86247.4,
+        "Tank 3": 76531.7,
+        "Tank 4": 60526.9,
+        "Tank 5": 25622.1,
+        "Tank 6": 37998.0,
+        "Tank 7": 29807.9,
+        "Tank 8": 32653.5,
+        "Tank 9": 36769.7,
+        "Tank 10": 34442.6
+      },
+      "total_purchases": 173162.7,
+      "total_withdrawals": 78563.6
+    },
+    {
+      "date": "2025-01-11",
+      "beginning_total": 496505.2,
+      "ending_total": 501544.7,
+      "gain_loss": -3876.3,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 39809.0,
+        "SOLANE": 36775.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 13653.3,
+        "Smallbulk": 26745.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 32234.9
+      },
+      "tanks_end": {
+        "Tank 1": 79251.3,
+        "Tank 2": 108816.6,
+        "Tank 3": 85128.6,
+        "Tank 4": 64505.0,
+        "Tank 5": 30188.4,
+        "Tank 6": 20426.6,
+        "Tank 7": 34637.8,
+        "Tank 8": 17534.5,
+        "Tank 9": 28080.4,
+        "Tank 10": 32975.3
+      },
+      "total_purchases": 76584.9,
+      "total_withdrawals": 72634.0
+    },
+    {
+      "date": "2025-01-12",
+      "beginning_total": 501544.7,
+      "ending_total": 532659.4,
+      "gain_loss": 1021.8,
+      "purchases": {
+        "BRENT GAS": 25420.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 19030.7,
+        "Smallbulk": 71920.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 36306.8
+      },
+      "tanks_end": {
+        "Tank 1": 47650.5,
+        "Tank 2": 88764.2,
+        "Tank 3": 125170.3,
+        "Tank 4": 73785.7,
+        "Tank 5": 32506.0,
+        "Tank 6": 35960.6,
+        "Tank 7": 32548.5,
+        "Tank 8": 35249.1,
+        "Tank 9": 40398.0,
+        "Tank 10": 20626.5
+      },
+      "total_purchases": 25420.4,
+      "total_withdrawals": 127258.3
+    },
+    {
+      "date": "2025-01-13",
+      "beginning_total": 532659.4,
+      "ending_total": 549580.4,
+      "gain_loss": 16670.2,
+      "purchases": {
+        "BRENT GAS": 24076.0,
+        "LIQUIGAZ": 25825.7,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4194.7,
+        "Smallbulk": 71573.7,
+        "Pick-up": 2634.3,
+        "Cylinder Production": 104283.5
+      },
+      "tanks_end": {
+        "Tank 1": 65770.3,
+        "Tank 2": 57930.3,
+        "Tank 3": 85161.7,
+        "Tank 4": 119918.3,
+        "Tank 5": 48877.0,
+        "Tank 6": 31072.7,
+        "Tank 7": 41167.1,
+        "Tank 8": 20905.6,
+        "Tank 9": 40393.4,
+        "Tank 10": 38384.1
+      },
+      "total_purchases": 49901.7,
+      "total_withdrawals": 182686.2
+    },
+    {
+      "date": "2025-01-14",
+      "beginning_total": 549580.4,
+      "ending_total": 551209.7,
+      "gain_loss": -21022.9,
+      "purchases": {
+        "BRENT GAS": 40380.3,
+        "LIQUIGAZ": 70718.2,
+        "SOLANE": 20663.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 10709.5,
+        "Smallbulk": 51006.7,
+        "Pick-up": 7848.3,
+        "Cylinder Production": 93319.5
+      },
+      "tanks_end": {
+        "Tank 1": 51750.3,
+        "Tank 2": 115999.4,
+        "Tank 3": 91569.2,
+        "Tank 4": 106077.1,
+        "Tank 5": 32319.1,
+        "Tank 6": 25512.4,
+        "Tank 7": 32982.3,
+        "Tank 8": 38783.8,
+        "Tank 9": 21370.5,
+        "Tank 10": 34845.5
+      },
+      "total_purchases": 131761.7,
+      "total_withdrawals": 162884.0
+    },
+    {
+      "date": "2025-01-15",
+      "beginning_total": 551209.7,
+      "ending_total": 529071.9,
+      "gain_loss": 8364.0,
+      "purchases": {
+        "BRENT GAS": 127634.6,
+        "LIQUIGAZ": 45005.6,
+        "SOLANE": 23904.7,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 22040.8,
+        "Smallbulk": 47500.2,
+        "Pick-up": 0.0,
+        "Cylinder Production": 32209.9
+      },
+      "tanks_end": {
+        "Tank 1": 115065.6,
+        "Tank 2": 61386.0,
+        "Tank 3": 63815.2,
+        "Tank 4": 110804.0,
+        "Tank 5": 24700.5,
+        "Tank 6": 39140.5,
+        "Tank 7": 34350.1,
+        "Tank 8": 22987.2,
+        "Tank 9": 15870.8,
+        "Tank 10": 40952.1
+      },
+      "total_purchases": 196544.9,
+      "total_withdrawals": 101750.9
+    },
+    {
+      "date": "2025-01-16",
+      "beginning_total": 529071.9,
+      "ending_total": 499196.4,
+      "gain_loss": 3972.1,
+      "purchases": {
+        "BRENT GAS": 37122.6,
+        "LIQUIGAZ": 48291.8,
+        "SOLANE": 33193.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2326.3,
+        "Smallbulk": 66801.9,
+        "Pick-up": 7042.7,
+        "Cylinder Production": 66441.1
+      },
+      "tanks_end": {
+        "Tank 1": 91398.2,
+        "Tank 2": 82751.2,
+        "Tank 3": 109035.0,
+        "Tank 4": 74982.3,
+        "Tank 5": 35167.1,
+        "Tank 6": 23357.0,
+        "Tank 7": 22823.5,
+        "Tank 8": 19248.5,
+        "Tank 9": 21215.2,
+        "Tank 10": 19218.4
+      },
+      "total_purchases": 118607.8,
+      "total_withdrawals": 142612.0
+    },
+    {
+      "date": "2025-01-17",
+      "beginning_total": 499196.4,
+      "ending_total": 504629.1,
+      "gain_loss": 14336.2,
+      "purchases": {
+        "BRENT GAS": 127172.8,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 28652.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 24500.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 31089.4
+      },
+      "tanks_end": {
+        "Tank 1": 80031.8,
+        "Tank 2": 61423.5,
+        "Tank 3": 111555.5,
+        "Tank 4": 81408.6,
+        "Tank 5": 30575.3,
+        "Tank 6": 16940.5,
+        "Tank 7": 34658.6,
+        "Tank 8": 25644.6,
+        "Tank 9": 34760.3,
+        "Tank 10": 27630.5
+      },
+      "total_purchases": 155825.2,
+      "total_withdrawals": 55589.4
+    },
+    {
+      "date": "2025-01-18",
+      "beginning_total": 504629.1,
+      "ending_total": 539874.5,
+      "gain_loss": 5303.5,
+      "purchases": {
+        "BRENT GAS": 113879.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1852.1,
+        "Smallbulk": 12556.8,
+        "Pick-up": 3431.5,
+        "Cylinder Production": 53395.3
+      },
+      "tanks_end": {
+        "Tank 1": 120260.7,
+        "Tank 2": 53509.0,
+        "Tank 3": 102764.0,
+        "Tank 4": 90707.3,
+        "Tank 5": 34923.0,
+        "Tank 6": 20561.8,
+        "Tank 7": 28107.3,
+        "Tank 8": 26275.9,
+        "Tank 9": 26077.9,
+        "Tank 10": 36687.5
+      },
+      "total_purchases": 113879.4,
+      "total_withdrawals": 71235.7
+    },
+    {
+      "date": "2025-01-19",
+      "beginning_total": 539874.5,
+      "ending_total": 539576.1,
+      "gain_loss": -1960.0,
+      "purchases": {
+        "BRENT GAS": 218006.3,
+        "LIQUIGAZ": 56503.7,
+        "SOLANE": 34282.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16510.7,
+        "Smallbulk": 22774.2,
+        "Pick-up": 0.0,
+        "Cylinder Production": 64688.8
+      },
+      "tanks_end": {
+        "Tank 1": 94556.6,
+        "Tank 2": 70253.5,
+        "Tank 3": 65451.3,
+        "Tank 4": 103645.2,
+        "Tank 5": 34442.1,
+        "Tank 6": 27776.2,
+        "Tank 7": 34024.4,
+        "Tank 8": 40357.5,
+        "Tank 9": 36713.8,
+        "Tank 10": 32355.5
+      },
+      "total_purchases": 308792.0,
+      "total_withdrawals": 103973.7
+    },
+    {
+      "date": "2025-01-20",
+      "beginning_total": 539576.1,
+      "ending_total": 535134.1,
+      "gain_loss": -8270.9,
+      "purchases": {
+        "BRENT GAS": 152236.6,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 32248.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4148.1,
+        "Smallbulk": 71661.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 39575.2
+      },
+      "tanks_end": {
+        "Tank 1": 99065.7,
+        "Tank 2": 99926.7,
+        "Tank 3": 118847.3,
+        "Tank 4": 84408.0,
+        "Tank 5": 27962.7,
+        "Tank 6": 17231.9,
+        "Tank 7": 16178.4,
+        "Tank 8": 26359.2,
+        "Tank 9": 23511.1,
+        "Tank 10": 21643.2
+      },
+      "total_purchases": 184484.6,
+      "total_withdrawals": 115384.7
+    },
+    {
+      "date": "2025-01-21",
+      "beginning_total": 535134.1,
+      "ending_total": 548559.0,
+      "gain_loss": -16262.8,
+      "purchases": {
+        "BRENT GAS": 38265.4,
+        "LIQUIGAZ": 69829.4,
+        "SOLANE": 38917.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1005.8,
+        "Smallbulk": 47992.6,
+        "Pick-up": 14984.7,
+        "Cylinder Production": 43974.7
+      },
+      "tanks_end": {
+        "Tank 1": 100473.1,
+        "Tank 2": 104724.9,
+        "Tank 3": 92425.7,
+        "Tank 4": 57995.1,
+        "Tank 5": 26688.6,
+        "Tank 6": 26268.7,
+        "Tank 7": 35921.3,
+        "Tank 8": 41297.4,
+        "Tank 9": 26168.3,
+        "Tank 10": 36595.9
+      },
+      "total_purchases": 147012.1,
+      "total_withdrawals": 107957.8
+    },
+    {
+      "date": "2025-01-22",
+      "beginning_total": 548559.0,
+      "ending_total": 506394.9,
+      "gain_loss": -383.1,
+      "purchases": {
+        "BRENT GAS": 77643.6,
+        "LIQUIGAZ": 68441.1,
+        "SOLANE": 0.0,
+        "PETRON": 21939.6
+      },
+      "withdrawals": {
+        "BACKLOAD": 10104.4,
+        "Smallbulk": 91990.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 61820.1
+      },
+      "tanks_end": {
+        "Tank 1": 58940.0,
+        "Tank 2": 72258.1,
+        "Tank 3": 102431.9,
+        "Tank 4": 92413.7,
+        "Tank 5": 34234.4,
+        "Tank 6": 20053.8,
+        "Tank 7": 28862.9,
+        "Tank 8": 38507.7,
+        "Tank 9": 26031.5,
+        "Tank 10": 32660.9
+      },
+      "total_purchases": 168024.3,
+      "total_withdrawals": 163914.6
+    },
+    {
+      "date": "2025-01-23",
+      "beginning_total": 506394.9,
+      "ending_total": 496186.2,
+      "gain_loss": -4641.4,
+      "purchases": {
+        "BRENT GAS": 44285.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 21484.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 24806.4,
+        "Smallbulk": 47223.1,
+        "Pick-up": 2701.7,
+        "Cylinder Production": 68374.9
+      },
+      "tanks_end": {
+        "Tank 1": 91752.0,
+        "Tank 2": 77089.9,
+        "Tank 3": 60471.6,
+        "Tank 4": 100089.2,
+        "Tank 5": 36786.8,
+        "Tank 6": 19458.6,
+        "Tank 7": 26694.0,
+        "Tank 8": 22749.0,
+        "Tank 9": 35413.3,
+        "Tank 10": 25681.8
+      },
+      "total_purchases": 65769.5,
+      "total_withdrawals": 143106.1
+    },
+    {
+      "date": "2025-01-24",
+      "beginning_total": 496186.2,
+      "ending_total": 508451.5,
+      "gain_loss": 19690.2,
+      "purchases": {
+        "BRENT GAS": 195865.3,
+        "LIQUIGAZ": 35127.3,
+        "SOLANE": 27128.7,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7071.0,
+        "Smallbulk": 57889.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 41441.8
+      },
+      "tanks_end": {
+        "Tank 1": 90518.1,
+        "Tank 2": 74909.7,
+        "Tank 3": 91594.2,
+        "Tank 4": 90909.4,
+        "Tank 5": 27934.2,
+        "Tank 6": 24342.0,
+        "Tank 7": 20761.8,
+        "Tank 8": 34446.6,
+        "Tank 9": 31066.0,
+        "Tank 10": 21969.6
+      },
+      "total_purchases": 258121.3,
+      "total_withdrawals": 106402.5
+    },
+    {
+      "date": "2025-01-25",
+      "beginning_total": 508451.5,
+      "ending_total": 531442.0,
+      "gain_loss": -9254.0,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 64171.7,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 24520.5,
+        "Smallbulk": 11146.7,
+        "Pick-up": 11552.7,
+        "Cylinder Production": 96966.9
+      },
+      "tanks_end": {
+        "Tank 1": 111868.1,
+        "Tank 2": 78566.6,
+        "Tank 3": 85140.0,
+        "Tank 4": 79842.3,
+        "Tank 5": 33407.1,
+        "Tank 6": 25413.0,
+        "Tank 7": 31676.0,
+        "Tank 8": 18873.2,
+        "Tank 9": 26935.5,
+        "Tank 10": 39720.2
+      },
+      "total_purchases": 64171.7,
+      "total_withdrawals": 144186.8
+    },
+    {
+      "date": "2025-01-26",
+      "beginning_total": 531442.0,
+      "ending_total": 523239.5,
+      "gain_loss": 991.5,
+      "purchases": {
+        "BRENT GAS": 87712.2,
+        "LIQUIGAZ": 58289.9,
+        "SOLANE": 36751.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17967.9,
+        "Smallbulk": 82152.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 78599.4
+      },
+      "tanks_end": {
+        "Tank 1": 100723.2,
+        "Tank 2": 105845.3,
+        "Tank 3": 89061.5,
+        "Tank 4": 68117.2,
+        "Tank 5": 15216.9,
+        "Tank 6": 27164.6,
+        "Tank 7": 32495.2,
+        "Tank 8": 22922.4,
+        "Tank 9": 28509.5,
+        "Tank 10": 33183.7
+      },
+      "total_purchases": 182753.6,
+      "total_withdrawals": 178719.9
+    },
+    {
+      "date": "2025-01-27",
+      "beginning_total": 523239.5,
+      "ending_total": 532319.4,
+      "gain_loss": -19791.8,
+      "purchases": {
+        "BRENT GAS": 29198.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 21202.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 82021.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 100287.8
+      },
+      "tanks_end": {
+        "Tank 1": 68917.8,
+        "Tank 2": 99089.2,
+        "Tank 3": 79435.0,
+        "Tank 4": 79563.0,
+        "Tank 5": 18744.0,
+        "Tank 6": 43891.7,
+        "Tank 7": 46945.8,
+        "Tank 8": 39874.9,
+        "Tank 9": 23442.5,
+        "Tank 10": 32415.6
+      },
+      "total_purchases": 50400.7,
+      "total_withdrawals": 182309.2
+    },
+    {
+      "date": "2025-01-28",
+      "beginning_total": 532319.4,
+      "ending_total": 537804.5,
+      "gain_loss": -6882.9,
+      "purchases": {
+        "BRENT GAS": 89113.1,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 23502.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12080.2,
+        "Smallbulk": 56613.4,
+        "Pick-up": 13220.7,
+        "Cylinder Production": 52732.8
+      },
+      "tanks_end": {
+        "Tank 1": 117618.7,
+        "Tank 2": 93533.0,
+        "Tank 3": 64623.3,
+        "Tank 4": 86579.5,
+        "Tank 5": 31870.0,
+        "Tank 6": 33348.3,
+        "Tank 7": 15880.0,
+        "Tank 8": 29876.3,
+        "Tank 9": 27122.1,
+        "Tank 10": 37353.3
+      },
+      "total_purchases": 112615.3,
+      "total_withdrawals": 134647.1
+    },
+    {
+      "date": "2025-01-29",
+      "beginning_total": 537804.5,
+      "ending_total": 558244.8,
+      "gain_loss": 339.9,
+      "purchases": {
+        "BRENT GAS": 77238.8,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 32005.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16479.5,
+        "Smallbulk": 61401.1,
+        "Pick-up": 20778.3,
+        "Cylinder Production": 53787.8
+      },
+      "tanks_end": {
+        "Tank 1": 90799.0,
+        "Tank 2": 103100.3,
+        "Tank 3": 116645.9,
+        "Tank 4": 59707.8,
+        "Tank 5": 25960.2,
+        "Tank 6": 39328.8,
+        "Tank 7": 22429.5,
+        "Tank 8": 21144.6,
+        "Tank 9": 33179.8,
+        "Tank 10": 45948.8
+      },
+      "total_purchases": 109244.4,
+      "total_withdrawals": 152446.7
+    },
+    {
+      "date": "2025-01-30",
+      "beginning_total": 558244.8,
+      "ending_total": 525609.7,
+      "gain_loss": 6530.8,
+      "purchases": {
+        "BRENT GAS": 126170.5,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 89845.9,
+        "Pick-up": 3237.4,
+        "Cylinder Production": 96230.8
+      },
+      "tanks_end": {
+        "Tank 1": 86765.8,
+        "Tank 2": 103735.2,
+        "Tank 3": 102894.2,
+        "Tank 4": 92099.1,
+        "Tank 5": 20993.5,
+        "Tank 6": 30392.1,
+        "Tank 7": 13210.7,
+        "Tank 8": 24771.4,
+        "Tank 9": 22962.4,
+        "Tank 10": 27785.3
+      },
+      "total_purchases": 126170.5,
+      "total_withdrawals": 189314.1
+    },
+    {
+      "date": "2025-01-31",
+      "beginning_total": 525609.7,
+      "ending_total": 540055.8,
+      "gain_loss": 13396.3,
+      "purchases": {
+        "BRENT GAS": 154468.2,
+        "LIQUIGAZ": 68989.9,
+        "SOLANE": 0.0,
+        "PETRON": 20150.1
+      },
+      "withdrawals": {
+        "BACKLOAD": 14035.2,
+        "Smallbulk": 26816.2,
+        "Pick-up": 1454.0,
+        "Cylinder Production": 100022.8
+      },
+      "tanks_end": {
+        "Tank 1": 78569.1,
+        "Tank 2": 87983.4,
+        "Tank 3": 64158.8,
+        "Tank 4": 135715.0,
+        "Tank 5": 26254.0,
+        "Tank 6": 31821.9,
+        "Tank 7": 20126.8,
+        "Tank 8": 43493.3,
+        "Tank 9": 21264.6,
+        "Tank 10": 30669.0
+      },
+      "total_purchases": 243608.2,
+      "total_withdrawals": 142328.2
+    },
+    {
+      "date": "2025-02-01",
+      "beginning_total": 540055.8,
+      "ending_total": 496184.4,
+      "gain_loss": -3018.4,
+      "purchases": {
+        "BRENT GAS": 154097.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12233.7,
+        "Smallbulk": 88879.3,
+        "Pick-up": 0.0,
+        "Cylinder Production": 64140.5
+      },
+      "tanks_end": {
+        "Tank 1": 109435.0,
+        "Tank 2": 102649.7,
+        "Tank 3": 48706.2,
+        "Tank 4": 90537.5,
+        "Tank 5": 26820.9,
+        "Tank 6": 37127.3,
+        "Tank 7": 22402.4,
+        "Tank 8": 23341.0,
+        "Tank 9": 18386.6,
+        "Tank 10": 16777.8
+      },
+      "total_purchases": 154097.2,
+      "total_withdrawals": 165253.5
+    },
+    {
+      "date": "2025-02-02",
+      "beginning_total": 496184.4,
+      "ending_total": 421361.1,
+      "gain_loss": -14822.5,
+      "purchases": {
+        "BRENT GAS": 189606.6,
+        "LIQUIGAZ": 59091.7,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 3148.1,
+        "Smallbulk": 13831.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 46628.3
+      },
+      "tanks_end": {
+        "Tank 1": 97698.9,
+        "Tank 2": 61314.0,
+        "Tank 3": 49143.5,
+        "Tank 4": 99772.3,
+        "Tank 5": 13137.6,
+        "Tank 6": 32313.3,
+        "Tank 7": 16316.9,
+        "Tank 8": 15987.6,
+        "Tank 9": 18691.9,
+        "Tank 10": 16985.0
+      },
+      "total_purchases": 248698.3,
+      "total_withdrawals": 63608.3
+    },
+    {
+      "date": "2025-02-03",
+      "beginning_total": 421361.1,
+      "ending_total": 402903.2,
+      "gain_loss": 2503.6,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 18921.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 18543.0,
+        "Smallbulk": 71381.5,
+        "Pick-up": 10953.7,
+        "Cylinder Production": 69519.3
+      },
+      "tanks_end": {
+        "Tank 1": 44141.0,
+        "Tank 2": 69309.3,
+        "Tank 3": 97460.7,
+        "Tank 4": 39953.2,
+        "Tank 5": 29040.3,
+        "Tank 6": 30820.1,
+        "Tank 7": 23477.4,
+        "Tank 8": 22129.9,
+        "Tank 9": 32882.4,
+        "Tank 10": 13688.8
+      },
+      "total_purchases": 18921.3,
+      "total_withdrawals": 170397.5
+    },
+    {
+      "date": "2025-02-04",
+      "beginning_total": 402903.2,
+      "ending_total": 375795.7,
+      "gain_loss": 3154.1,
+      "purchases": {
+        "BRENT GAS": 115796.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1642.1,
+        "Smallbulk": 61811.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 106586.3
+      },
+      "tanks_end": {
+        "Tank 1": 64475.5,
+        "Tank 2": 60027.7,
+        "Tank 3": 68809.2,
+        "Tank 4": 39505.9,
+        "Tank 5": 24795.5,
+        "Tank 6": 27709.2,
+        "Tank 7": 23814.1,
+        "Tank 8": 26091.7,
+        "Tank 9": 25163.2,
+        "Tank 10": 15403.8
+      },
+      "total_purchases": 115796.4,
+      "total_withdrawals": 170039.9
+    },
+    {
+      "date": "2025-02-05",
+      "beginning_total": 375795.7,
+      "ending_total": 398859.2,
+      "gain_loss": 2875.5,
+      "purchases": {
+        "BRENT GAS": 110311.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9357.5,
+        "Smallbulk": 86453.7,
+        "Pick-up": 1544.1,
+        "Cylinder Production": 37178.7
+      },
+      "tanks_end": {
+        "Tank 1": 41235.5,
+        "Tank 2": 80186.6,
+        "Tank 3": 84612.4,
+        "Tank 4": 69122.6,
+        "Tank 5": 23649.3,
+        "Tank 6": 23146.3,
+        "Tank 7": 18457.3,
+        "Tank 8": 14264.1,
+        "Tank 9": 18941.5,
+        "Tank 10": 25243.8
+      },
+      "total_purchases": 110311.0,
+      "total_withdrawals": 134534.0
+    },
+    {
+      "date": "2025-02-06",
+      "beginning_total": 398859.2,
+      "ending_total": 415993.7,
+      "gain_loss": -10235.9,
+      "purchases": {
+        "BRENT GAS": 170056.9,
+        "LIQUIGAZ": 62705.8,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16418.4,
+        "Smallbulk": 17198.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 88720.6
+      },
+      "tanks_end": {
+        "Tank 1": 60279.6,
+        "Tank 2": 72420.7,
+        "Tank 3": 74396.3,
+        "Tank 4": 81135.1,
+        "Tank 5": 24334.8,
+        "Tank 6": 20778.5,
+        "Tank 7": 21284.1,
+        "Tank 8": 10582.5,
+        "Tank 9": 26255.8,
+        "Tank 10": 24526.3
+      },
+      "total_purchases": 232762.7,
+      "total_withdrawals": 122337.6
+    },
+    {
+      "date": "2025-02-07",
+      "beginning_total": 415993.7,
+      "ending_total": 380394.8,
+      "gain_loss": 9934.5,
+      "purchases": {
+        "BRENT GAS": 73489.5,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 61819.6,
+        "Pick-up": 705.1,
+        "Cylinder Production": 46565.2
+      },
+      "tanks_end": {
+        "Tank 1": 62508.1,
+        "Tank 2": 57589.5,
+        "Tank 3": 59406.3,
+        "Tank 4": 81311.3,
+        "Tank 5": 28251.1,
+        "Tank 6": 23905.1,
+        "Tank 7": 13880.6,
+        "Tank 8": 13208.7,
+        "Tank 9": 15385.4,
+        "Tank 10": 24948.7
+      },
+      "total_purchases": 73489.5,
+      "total_withdrawals": 109089.9
+    },
+    {
+      "date": "2025-02-08",
+      "beginning_total": 380394.8,
+      "ending_total": 402656.0,
+      "gain_loss": -1565.9,
+      "purchases": {
+        "BRENT GAS": 154793.7,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 10747.8,
+        "Smallbulk": 65671.3,
+        "Pick-up": 11192.6,
+        "Cylinder Production": 33497.1
+      },
+      "tanks_end": {
+        "Tank 1": 73432.6,
+        "Tank 2": 88745.1,
+        "Tank 3": 44349.4,
+        "Tank 4": 66390.7,
+        "Tank 5": 19874.4,
+        "Tank 6": 18023.5,
+        "Tank 7": 20982.1,
+        "Tank 8": 22798.1,
+        "Tank 9": 14784.2,
+        "Tank 10": 33275.8
+      },
+      "total_purchases": 154793.7,
+      "total_withdrawals": 121108.8
+    },
+    {
+      "date": "2025-02-09",
+      "beginning_total": 402656.0,
+      "ending_total": 373129.5,
+      "gain_loss": 5165.3,
+      "purchases": {
+        "BRENT GAS": 55139.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 36333.8,
+        "PETRON": 20432.5
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 86298.8,
+        "Pick-up": 19828.5,
+        "Cylinder Production": 74151.8
+      },
+      "tanks_end": {
+        "Tank 1": 80966.6,
+        "Tank 2": 62691.6,
+        "Tank 3": 43745.6,
+        "Tank 4": 37838.8,
+        "Tank 5": 18957.3,
+        "Tank 6": 28905.7,
+        "Tank 7": 25081.4,
+        "Tank 8": 29546.7,
+        "Tank 9": 31378.4,
+        "Tank 10": 14017.3
+      },
+      "total_purchases": 111905.3,
+      "total_withdrawals": 180279.1
+    },
+    {
+      "date": "2025-02-10",
+      "beginning_total": 373129.5,
+      "ending_total": 369249.8,
+      "gain_loss": 11482.0,
+      "purchases": {
+        "BRENT GAS": 188896.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4203.3,
+        "Smallbulk": 17692.3,
+        "Pick-up": 11728.9,
+        "Cylinder Production": 56901.9
+      },
+      "tanks_end": {
+        "Tank 1": 69698.0,
+        "Tank 2": 74567.3,
+        "Tank 3": 74359.3,
+        "Tank 4": 43582.9,
+        "Tank 5": 12935.5,
+        "Tank 6": 13836.4,
+        "Tank 7": 21017.4,
+        "Tank 8": 23814.7,
+        "Tank 9": 21958.8,
+        "Tank 10": 13479.7
+      },
+      "total_purchases": 188896.9,
+      "total_withdrawals": 90526.4
+    },
+    {
+      "date": "2025-02-11",
+      "beginning_total": 369249.8,
+      "ending_total": 359555.7,
+      "gain_loss": 4169.2,
+      "purchases": {
+        "BRENT GAS": 174569.6,
+        "LIQUIGAZ": 64775.6,
+        "SOLANE": 27875.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 15613.0,
+        "Smallbulk": 61313.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 64050.0
+      },
+      "tanks_end": {
+        "Tank 1": 57878.9,
+        "Tank 2": 56040.5,
+        "Tank 3": 41769.2,
+        "Tank 4": 71236.9,
+        "Tank 5": 19458.2,
+        "Tank 6": 22539.0,
+        "Tank 7": 13938.7,
+        "Tank 8": 30807.5,
+        "Tank 9": 14370.7,
+        "Tank 10": 31516.2
+      },
+      "total_purchases": 267221.1,
+      "total_withdrawals": 140976.5
+    },
+    {
+      "date": "2025-02-12",
+      "beginning_total": 359555.7,
+      "ending_total": 361294.6,
+      "gain_loss": 618.9,
+      "purchases": {
+        "BRENT GAS": 191058.7,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 30195.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 20245.4,
+        "Smallbulk": 35329.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 34764.3
+      },
+      "tanks_end": {
+        "Tank 1": 39169.3,
+        "Tank 2": 84542.8,
+        "Tank 3": 52852.6,
+        "Tank 4": 74003.3,
+        "Tank 5": 20680.2,
+        "Tank 6": 14369.2,
+        "Tank 7": 15798.4,
+        "Tank 8": 19410.5,
+        "Tank 9": 19442.1,
+        "Tank 10": 21026.1
+      },
+      "total_purchases": 221253.7,
+      "total_withdrawals": 90339.5
+    },
+    {
+      "date": "2025-02-13",
+      "beginning_total": 361294.6,
+      "ending_total": 382751.6,
+      "gain_loss": 21148.0,
+      "purchases": {
+        "BRENT GAS": 51749.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 25444.1,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 65662.2,
+        "Pick-up": 6535.4,
+        "Cylinder Production": 80555.4
+      },
+      "tanks_end": {
+        "Tank 1": 78711.6,
+        "Tank 2": 76964.6,
+        "Tank 3": 48436.4,
+        "Tank 4": 61613.0,
+        "Tank 5": 12765.0,
+        "Tank 6": 16435.3,
+        "Tank 7": 27317.8,
+        "Tank 8": 22576.2,
+        "Tank 9": 17177.5,
+        "Tank 10": 20754.3
+      },
+      "total_purchases": 77193.3,
+      "total_withdrawals": 152753.0
+    },
+    {
+      "date": "2025-02-14",
+      "beginning_total": 382751.6,
+      "ending_total": 399162.3,
+      "gain_loss": 148.0,
+      "purchases": {
+        "BRENT GAS": 207600.4,
+        "LIQUIGAZ": 41354.1,
+        "SOLANE": 35890.1,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17135.4,
+        "Smallbulk": 62912.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 57920.0
+      },
+      "tanks_end": {
+        "Tank 1": 50399.7,
+        "Tank 2": 52639.2,
+        "Tank 3": 101050.8,
+        "Tank 4": 70597.1,
+        "Tank 5": 17818.1,
+        "Tank 6": 15860.5,
+        "Tank 7": 14531.6,
+        "Tank 8": 31412.2,
+        "Tank 9": 15059.1,
+        "Tank 10": 29794.0
+      },
+      "total_purchases": 284844.6,
+      "total_withdrawals": 137967.5
+    },
+    {
+      "date": "2025-02-15",
+      "beginning_total": 399162.3,
+      "ending_total": 407494.2,
+      "gain_loss": -5788.4,
+      "purchases": {
+        "BRENT GAS": 187024.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 20783.6,
+        "Smallbulk": 76768.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 61636.1
+      },
+      "tanks_end": {
+        "Tank 1": 82141.4,
+        "Tank 2": 53526.3,
+        "Tank 3": 67002.6,
+        "Tank 4": 56616.9,
+        "Tank 5": 28949.2,
+        "Tank 6": 22437.0,
+        "Tank 7": 24286.3,
+        "Tank 8": 19405.7,
+        "Tank 9": 30255.2,
+        "Tank 10": 22873.6
+      },
+      "total_purchases": 187024.0,
+      "total_withdrawals": 159188.4
+    },
+    {
+      "date": "2025-02-16",
+      "beginning_total": 407494.2,
+      "ending_total": 424227.9,
+      "gain_loss": -1301.1,
+      "purchases": {
+        "BRENT GAS": 187022.7,
+        "LIQUIGAZ": 76722.1,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 24156.7,
+        "Smallbulk": 76107.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 79370.8
+      },
+      "tanks_end": {
+        "Tank 1": 88936.3,
+        "Tank 2": 69435.1,
+        "Tank 3": 41856.3,
+        "Tank 4": 87213.9,
+        "Tank 5": 29178.6,
+        "Tank 6": 17663.7,
+        "Tank 7": 27387.6,
+        "Tank 8": 17414.1,
+        "Tank 9": 30279.8,
+        "Tank 10": 14862.5
+      },
+      "total_purchases": 263744.8,
+      "total_withdrawals": 179634.5
+    },
+    {
+      "date": "2025-02-17",
+      "beginning_total": 424227.9,
+      "ending_total": 436160.8,
+      "gain_loss": 13777.7,
+      "purchases": {
+        "BRENT GAS": 107494.5,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 5894.5,
+        "Smallbulk": 39867.6,
+        "Pick-up": 648.3,
+        "Cylinder Production": 94616.6
+      },
+      "tanks_end": {
+        "Tank 1": 85286.3,
+        "Tank 2": 95066.0,
+        "Tank 3": 49854.9,
+        "Tank 4": 60178.1,
+        "Tank 5": 32573.4,
+        "Tank 6": 29491.7,
+        "Tank 7": 16645.8,
+        "Tank 8": 29709.9,
+        "Tank 9": 23787.2,
+        "Tank 10": 13567.5
+      },
+      "total_purchases": 107494.5,
+      "total_withdrawals": 141027.0
+    },
+    {
+      "date": "2025-02-18",
+      "beginning_total": 436160.8,
+      "ending_total": 417140.3,
+      "gain_loss": -1226.9,
+      "purchases": {
+        "BRENT GAS": 35845.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 33999.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 43685.2,
+        "Pick-up": 0.0,
+        "Cylinder Production": 38536.1
+      },
+      "tanks_end": {
+        "Tank 1": 99675.5,
+        "Tank 2": 79023.1,
+        "Tank 3": 40163.3,
+        "Tank 4": 73574.7,
+        "Tank 5": 18421.3,
+        "Tank 6": 16225.8,
+        "Tank 7": 22602.2,
+        "Tank 8": 26744.4,
+        "Tank 9": 18390.7,
+        "Tank 10": 22319.3
+      },
+      "total_purchases": 69844.4,
+      "total_withdrawals": 82221.3
+    },
+    {
+      "date": "2025-02-19",
+      "beginning_total": 417140.3,
+      "ending_total": 395589.0,
+      "gain_loss": 3180.4,
+      "purchases": {
+        "BRENT GAS": 152874.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 29573.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9761.3,
+        "Smallbulk": 62032.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 31250.7
+      },
+      "tanks_end": {
+        "Tank 1": 76699.4,
+        "Tank 2": 51891.5,
+        "Tank 3": 73592.0,
+        "Tank 4": 67739.2,
+        "Tank 5": 25249.3,
+        "Tank 6": 24572.5,
+        "Tank 7": 17068.2,
+        "Tank 8": 11697.5,
+        "Tank 9": 21047.0,
+        "Tank 10": 26032.2
+      },
+      "total_purchases": 182447.6,
+      "total_withdrawals": 103044.0
+    },
+    {
+      "date": "2025-02-20",
+      "beginning_total": 395589.0,
+      "ending_total": 380965.1,
+      "gain_loss": 10620.3,
+      "purchases": {
+        "BRENT GAS": 55017.8,
+        "LIQUIGAZ": 46806.6,
+        "SOLANE": 31898.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 11442.0,
+        "Smallbulk": 11723.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 101869.6
+      },
+      "tanks_end": {
+        "Tank 1": 60714.1,
+        "Tank 2": 86892.5,
+        "Tank 3": 62241.9,
+        "Tank 4": 46232.4,
+        "Tank 5": 24620.2,
+        "Tank 6": 14264.9,
+        "Tank 7": 17320.2,
+        "Tank 8": 25127.7,
+        "Tank 9": 26692.6,
+        "Tank 10": 16858.8
+      },
+      "total_purchases": 133722.6,
+      "total_withdrawals": 125035.1
+    },
+    {
+      "date": "2025-02-21",
+      "beginning_total": 380965.1,
+      "ending_total": 393481.3,
+      "gain_loss": -8174.2,
+      "purchases": {
+        "BRENT GAS": 44895.0,
+        "LIQUIGAZ": 73148.2,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12438.1,
+        "Smallbulk": 52138.4,
+        "Pick-up": 18426.4,
+        "Cylinder Production": 36077.4
+      },
+      "tanks_end": {
+        "Tank 1": 69499.7,
+        "Tank 2": 82387.5,
+        "Tank 3": 66160.2,
+        "Tank 4": 53016.0,
+        "Tank 5": 12960.8,
+        "Tank 6": 24308.8,
+        "Tank 7": 17384.5,
+        "Tank 8": 23169.9,
+        "Tank 9": 19721.5,
+        "Tank 10": 24872.4
+      },
+      "total_purchases": 118043.2,
+      "total_withdrawals": 119080.3
+    },
+    {
+      "date": "2025-02-22",
+      "beginning_total": 393481.3,
+      "ending_total": 385013.2,
+      "gain_loss": -21525.0,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 25880.2
+      },
+      "withdrawals": {
+        "BACKLOAD": 1876.0,
+        "Smallbulk": 38881.4,
+        "Pick-up": 18425.2,
+        "Cylinder Production": 103364.8
+      },
+      "tanks_end": {
+        "Tank 1": 46680.3,
+        "Tank 2": 76560.9,
+        "Tank 3": 87730.2,
+        "Tank 4": 39738.5,
+        "Tank 5": 13941.2,
+        "Tank 6": 29183.5,
+        "Tank 7": 20350.6,
+        "Tank 8": 20704.7,
+        "Tank 9": 24656.1,
+        "Tank 10": 25467.2
+      },
+      "total_purchases": 25880.2,
+      "total_withdrawals": 162547.4
+    },
+    {
+      "date": "2025-02-23",
+      "beginning_total": 385013.2,
+      "ending_total": 448949.5,
+      "gain_loss": 760.9,
+      "purchases": {
+        "BRENT GAS": 155812.4,
+        "LIQUIGAZ": 41064.8,
+        "SOLANE": 30626.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 70532.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 73248.8
+      },
+      "tanks_end": {
+        "Tank 1": 58326.5,
+        "Tank 2": 58223.9,
+        "Tank 3": 71059.8,
+        "Tank 4": 109025.3,
+        "Tank 5": 19989.7,
+        "Tank 6": 34503.9,
+        "Tank 7": 24720.2,
+        "Tank 8": 16241.2,
+        "Tank 9": 33039.6,
+        "Tank 10": 23819.3
+      },
+      "total_purchases": 227503.5,
+      "total_withdrawals": 143781.2
+    },
+    {
+      "date": "2025-02-24",
+      "beginning_total": 448949.5,
+      "ending_total": 424544.4,
+      "gain_loss": -5.7,
+      "purchases": {
+        "BRENT GAS": 199735.8,
+        "LIQUIGAZ": 23443.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 13554.3,
+        "Smallbulk": 80365.8,
+        "Pick-up": 16371.6,
+        "Cylinder Production": 79102.9
+      },
+      "tanks_end": {
+        "Tank 1": 97130.1,
+        "Tank 2": 77031.5,
+        "Tank 3": 49706.4,
+        "Tank 4": 55322.3,
+        "Tank 5": 16980.6,
+        "Tank 6": 32298.6,
+        "Tank 7": 14333.3,
+        "Tank 8": 26741.5,
+        "Tank 9": 22389.2,
+        "Tank 10": 32611.0
+      },
+      "total_purchases": 223178.8,
+      "total_withdrawals": 189394.6
+    },
+    {
+      "date": "2025-02-25",
+      "beginning_total": 424544.4,
+      "ending_total": 392311.1,
+      "gain_loss": -9220.9,
+      "purchases": {
+        "BRENT GAS": 130329.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 39991.1,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 90652.3,
+        "Pick-up": 0.0,
+        "Cylinder Production": 82368.4
+      },
+      "tanks_end": {
+        "Tank 1": 51757.4,
+        "Tank 2": 81514.2,
+        "Tank 3": 76064.4,
+        "Tank 4": 68228.7,
+        "Tank 5": 14230.0,
+        "Tank 6": 28813.3,
+        "Tank 7": 18890.7,
+        "Tank 8": 27780.4,
+        "Tank 9": 11876.9,
+        "Tank 10": 13155.2
+      },
+      "total_purchases": 170320.5,
+      "total_withdrawals": 173020.7
+    },
+    {
+      "date": "2025-02-26",
+      "beginning_total": 392311.1,
+      "ending_total": 412363.4,
+      "gain_loss": 7049.2,
+      "purchases": {
+        "BRENT GAS": 50603.1,
+        "LIQUIGAZ": 38005.0,
+        "SOLANE": 25612.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6265.1,
+        "Smallbulk": 54821.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 71077.8
+      },
+      "tanks_end": {
+        "Tank 1": 67111.4,
+        "Tank 2": 46473.4,
+        "Tank 3": 94244.7,
+        "Tank 4": 45580.8,
+        "Tank 5": 25587.5,
+        "Tank 6": 26862.7,
+        "Tank 7": 24483.4,
+        "Tank 8": 29373.8,
+        "Tank 9": 23628.0,
+        "Tank 10": 29017.6
+      },
+      "total_purchases": 114220.6,
+      "total_withdrawals": 132164.4
+    },
+    {
+      "date": "2025-02-27",
+      "beginning_total": 412363.4,
+      "ending_total": 450710.4,
+      "gain_loss": 4150.5,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 57770.1,
+        "SOLANE": 32324.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12451.0,
+        "Smallbulk": 32622.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 91961.0
+      },
+      "tanks_end": {
+        "Tank 1": 103238.7,
+        "Tank 2": 71692.4,
+        "Tank 3": 53421.8,
+        "Tank 4": 52358.8,
+        "Tank 5": 27755.0,
+        "Tank 6": 28966.3,
+        "Tank 7": 21363.0,
+        "Tank 8": 32287.6,
+        "Tank 9": 24308.5,
+        "Tank 10": 35318.4
+      },
+      "total_purchases": 90095.0,
+      "total_withdrawals": 137034.1
+    },
+    {
+      "date": "2025-02-28",
+      "beginning_total": 450710.4,
+      "ending_total": 463404.9,
+      "gain_loss": -13477.7,
+      "purchases": {
+        "BRENT GAS": 166840.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 26151.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6686.8,
+        "Smallbulk": 16229.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 77384.1
+      },
+      "tanks_end": {
+        "Tank 1": 62602.6,
+        "Tank 2": 109052.7,
+        "Tank 3": 55935.0,
+        "Tank 4": 68562.1,
+        "Tank 5": 29133.6,
+        "Tank 6": 22484.6,
+        "Tank 7": 33786.7,
+        "Tank 8": 27140.7,
+        "Tank 9": 27553.7,
+        "Tank 10": 27153.1
+      },
+      "total_purchases": 192991.9,
+      "total_withdrawals": 100299.9
+    },
+    {
+      "date": "2025-03-01",
+      "beginning_total": 463404.9,
+      "ending_total": 485342.9,
+      "gain_loss": 3167.6,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12372.4,
+        "Smallbulk": 63612.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 95232.3
+      },
+      "tanks_end": {
+        "Tank 1": 70081.7,
+        "Tank 2": 101280.6,
+        "Tank 3": 90574.3,
+        "Tank 4": 93085.9,
+        "Tank 5": 21863.7,
+        "Tank 6": 22661.6,
+        "Tank 7": 26570.2,
+        "Tank 8": 17918.7,
+        "Tank 9": 26177.3,
+        "Tank 10": 15129.0
+      },
+      "total_purchases": 0.0,
+      "total_withdrawals": 171216.8
+    },
+    {
+      "date": "2025-03-02",
+      "beginning_total": 485342.9,
+      "ending_total": 523815.7,
+      "gain_loss": -4689.9,
+      "purchases": {
+        "BRENT GAS": 120851.1,
+        "LIQUIGAZ": 35342.7,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 19872.4,
+        "Smallbulk": 87810.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 69202.4
+      },
+      "tanks_end": {
+        "Tank 1": 102934.3,
+        "Tank 2": 59726.4,
+        "Tank 3": 68441.9,
+        "Tank 4": 87064.2,
+        "Tank 5": 33477.4,
+        "Tank 6": 32946.8,
+        "Tank 7": 37674.2,
+        "Tank 8": 34800.0,
+        "Tank 9": 28860.7,
+        "Tank 10": 37889.8
+      },
+      "total_purchases": 156193.8,
+      "total_withdrawals": 176885.4
+    },
+    {
+      "date": "2025-03-03",
+      "beginning_total": 523815.7,
+      "ending_total": 519718.1,
+      "gain_loss": -18846.1,
+      "purchases": {
+        "BRENT GAS": 52500.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 25400.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7494.8,
+        "Smallbulk": 39310.4,
+        "Pick-up": 15497.5,
+        "Cylinder Production": 74945.1
+      },
+      "tanks_end": {
+        "Tank 1": 100035.5,
+        "Tank 2": 94857.8,
+        "Tank 3": 92155.6,
+        "Tank 4": 44214.3,
+        "Tank 5": 25561.1,
+        "Tank 6": 37460.3,
+        "Tank 7": 33010.5,
+        "Tank 8": 32847.6,
+        "Tank 9": 28050.9,
+        "Tank 10": 31524.5
+      },
+      "total_purchases": 77900.6,
+      "total_withdrawals": 137247.8
+    },
+    {
+      "date": "2025-03-04",
+      "beginning_total": 519718.1,
+      "ending_total": 478410.4,
+      "gain_loss": 2449.7,
+      "purchases": {
+        "BRENT GAS": 136704.7,
+        "LIQUIGAZ": 56999.6,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 9609.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 83168.5
+      },
+      "tanks_end": {
+        "Tank 1": 66129.4,
+        "Tank 2": 90392.4,
+        "Tank 3": 100078.4,
+        "Tank 4": 96903.8,
+        "Tank 5": 29262.7,
+        "Tank 6": 14321.4,
+        "Tank 7": 16002.9,
+        "Tank 8": 17539.3,
+        "Tank 9": 20150.3,
+        "Tank 10": 27629.8
+      },
+      "total_purchases": 193704.3,
+      "total_withdrawals": 92778.2
+    },
+    {
+      "date": "2025-03-05",
+      "beginning_total": 478410.4,
+      "ending_total": 462047.3,
+      "gain_loss": -3030.1,
+      "purchases": {
+        "BRENT GAS": 125095.4,
+        "LIQUIGAZ": 28737.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16082.7,
+        "Smallbulk": 59856.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 72972.7
+      },
+      "tanks_end": {
+        "Tank 1": 58468.5,
+        "Tank 2": 112585.0,
+        "Tank 3": 63731.4,
+        "Tank 4": 63108.5,
+        "Tank 5": 19065.3,
+        "Tank 6": 31067.5,
+        "Tank 7": 21712.2,
+        "Tank 8": 22478.2,
+        "Tank 9": 36582.8,
+        "Tank 10": 33247.9
+      },
+      "total_purchases": 153832.7,
+      "total_withdrawals": 148911.9
+    },
+    {
+      "date": "2025-03-06",
+      "beginning_total": 462047.3,
+      "ending_total": 487263.6,
+      "gain_loss": -10730.9,
+      "purchases": {
+        "BRENT GAS": 74691.5,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 39563.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7261.3,
+        "Smallbulk": 68702.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 49746.2
+      },
+      "tanks_end": {
+        "Tank 1": 78016.0,
+        "Tank 2": 57674.3,
+        "Tank 3": 82385.2,
+        "Tank 4": 111350.5,
+        "Tank 5": 31319.2,
+        "Tank 6": 17638.7,
+        "Tank 7": 29348.9,
+        "Tank 8": 28642.8,
+        "Tank 9": 20213.4,
+        "Tank 10": 30674.6
+      },
+      "total_purchases": 114255.0,
+      "total_withdrawals": 125709.5
+    },
+    {
+      "date": "2025-03-07",
+      "beginning_total": 487263.6,
+      "ending_total": 445375.7,
+      "gain_loss": 3219.6,
+      "purchases": {
+        "BRENT GAS": 126208.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 13758.8,
+        "Smallbulk": 42587.1,
+        "Pick-up": 21505.7,
+        "Cylinder Production": 66763.5
+      },
+      "tanks_end": {
+        "Tank 1": 50630.1,
+        "Tank 2": 100074.6,
+        "Tank 3": 58502.3,
+        "Tank 4": 79505.6,
+        "Tank 5": 32151.4,
+        "Tank 6": 14505.2,
+        "Tank 7": 24954.6,
+        "Tank 8": 24114.2,
+        "Tank 9": 28166.7,
+        "Tank 10": 32770.8
+      },
+      "total_purchases": 126208.3,
+      "total_withdrawals": 144615.1
+    },
+    {
+      "date": "2025-03-08",
+      "beginning_total": 445375.7,
+      "ending_total": 444849.7,
+      "gain_loss": 2836.3,
+      "purchases": {
+        "BRENT GAS": 202645.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 38232.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 23415.2,
+        "Smallbulk": 86713.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 73733.1
+      },
+      "tanks_end": {
+        "Tank 1": 43724.2,
+        "Tank 2": 99164.5,
+        "Tank 3": 54946.6,
+        "Tank 4": 99551.0,
+        "Tank 5": 23775.8,
+        "Tank 6": 22733.5,
+        "Tank 7": 32117.1,
+        "Tank 8": 30270.6,
+        "Tank 9": 22187.1,
+        "Tank 10": 16379.3
+      },
+      "total_purchases": 240877.9,
+      "total_withdrawals": 183861.7
+    },
+    {
+      "date": "2025-03-09",
+      "beginning_total": 444849.7,
+      "ending_total": 450475.5,
+      "gain_loss": -8885.7,
+      "purchases": {
+        "BRENT GAS": 42529.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 22096.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 18932.1,
+        "Smallbulk": 80772.5,
+        "Pick-up": 20632.0,
+        "Cylinder Production": 69676.6
+      },
+      "tanks_end": {
+        "Tank 1": 54815.8,
+        "Tank 2": 102469.2,
+        "Tank 3": 62836.3,
+        "Tank 4": 59223.0,
+        "Tank 5": 24730.9,
+        "Tank 6": 22670.6,
+        "Tank 7": 23018.0,
+        "Tank 8": 22329.1,
+        "Tank 9": 36460.6,
+        "Tank 10": 41921.9
+      },
+      "total_purchases": 64625.8,
+      "total_withdrawals": 190013.2
+    },
+    {
+      "date": "2025-03-10",
+      "beginning_total": 450475.5,
+      "ending_total": 440174.0,
+      "gain_loss": 1871.1,
+      "purchases": {
+        "BRENT GAS": 80389.2,
+        "LIQUIGAZ": 18709.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 10135.4,
+        "Smallbulk": 84085.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 39041.0
+      },
+      "tanks_end": {
+        "Tank 1": 102914.1,
+        "Tank 2": 60286.1,
+        "Tank 3": 82220.6,
+        "Tank 4": 55076.1,
+        "Tank 5": 16401.3,
+        "Tank 6": 16850.1,
+        "Tank 7": 30452.1,
+        "Tank 8": 27203.6,
+        "Tank 9": 22859.2,
+        "Tank 10": 25910.9
+      },
+      "total_purchases": 99098.2,
+      "total_withdrawals": 133261.5
+    },
+    {
+      "date": "2025-03-11",
+      "beginning_total": 440174.0,
+      "ending_total": 458970.8,
+      "gain_loss": 8632.9,
+      "purchases": {
+        "BRENT GAS": 114165.6,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 23444.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 11168.7,
+        "Smallbulk": 14638.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 72169.0
+      },
+      "tanks_end": {
+        "Tank 1": 87189.1,
+        "Tank 2": 92571.4,
+        "Tank 3": 58711.1,
+        "Tank 4": 72986.0,
+        "Tank 5": 29459.5,
+        "Tank 6": 18673.2,
+        "Tank 7": 21053.1,
+        "Tank 8": 31136.0,
+        "Tank 9": 17997.9,
+        "Tank 10": 29193.5
+      },
+      "total_purchases": 137609.8,
+      "total_withdrawals": 97976.4
+    },
+    {
+      "date": "2025-03-12",
+      "beginning_total": 458970.8,
+      "ending_total": 473767.8,
+      "gain_loss": -10372.1,
+      "purchases": {
+        "BRENT GAS": 181738.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9898.7,
+        "Smallbulk": 71393.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 56528.7
+      },
+      "tanks_end": {
+        "Tank 1": 44707.2,
+        "Tank 2": 108985.4,
+        "Tank 3": 104871.8,
+        "Tank 4": 45070.6,
+        "Tank 5": 34938.7,
+        "Tank 6": 14164.9,
+        "Tank 7": 22850.2,
+        "Tank 8": 31143.3,
+        "Tank 9": 31070.9,
+        "Tank 10": 35964.8
+      },
+      "total_purchases": 181738.4,
+      "total_withdrawals": 137820.8
+    },
+    {
+      "date": "2025-03-13",
+      "beginning_total": 473767.8,
+      "ending_total": 537302.4,
+      "gain_loss": 1657.0,
+      "purchases": {
+        "BRENT GAS": 149176.2,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 37131.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16544.8,
+        "Smallbulk": 63550.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 71368.9
+      },
+      "tanks_end": {
+        "Tank 1": 100472.5,
+        "Tank 2": 118451.3,
+        "Tank 3": 72815.1,
+        "Tank 4": 53011.4,
+        "Tank 5": 18250.5,
+        "Tank 6": 26550.4,
+        "Tank 7": 37846.9,
+        "Tank 8": 33960.7,
+        "Tank 9": 33583.9,
+        "Tank 10": 42359.6
+      },
+      "total_purchases": 186307.8,
+      "total_withdrawals": 151464.1
+    },
+    {
+      "date": "2025-03-14",
+      "beginning_total": 537302.4,
+      "ending_total": 553196.6,
+      "gain_loss": -2502.5,
+      "purchases": {
+        "BRENT GAS": 69502.4,
+        "LIQUIGAZ": 35090.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 19151.3,
+        "Smallbulk": 9329.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 32585.4
+      },
+      "tanks_end": {
+        "Tank 1": 102902.6,
+        "Tank 2": 112094.2,
+        "Tank 3": 55062.6,
+        "Tank 4": 115339.9,
+        "Tank 5": 28622.8,
+        "Tank 6": 23746.0,
+        "Tank 7": 23250.3,
+        "Tank 8": 42024.2,
+        "Tank 9": 18579.8,
+        "Tank 10": 31574.2
+      },
+      "total_purchases": 104592.7,
+      "total_withdrawals": 61066.6
+    },
+    {
+      "date": "2025-03-15",
+      "beginning_total": 553196.6,
+      "ending_total": 534668.4,
+      "gain_loss": 22393.3,
+      "purchases": {
+        "BRENT GAS": 77852.7,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 31154.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 3581.5,
+        "Smallbulk": 26788.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 103036.1
+      },
+      "tanks_end": {
+        "Tank 1": 101070.3,
+        "Tank 2": 103271.5,
+        "Tank 3": 83542.8,
+        "Tank 4": 69809.8,
+        "Tank 5": 24845.5,
+        "Tank 6": 35821.9,
+        "Tank 7": 35114.9,
+        "Tank 8": 28891.9,
+        "Tank 9": 31527.6,
+        "Tank 10": 20772.2
+      },
+      "total_purchases": 109006.9,
+      "total_withdrawals": 133406.2
+    },
+    {
+      "date": "2025-03-16",
+      "beginning_total": 534668.4,
+      "ending_total": 517473.2,
+      "gain_loss": -23018.1,
+      "purchases": {
+        "BRENT GAS": 103264.9,
+        "LIQUIGAZ": 41340.5,
+        "SOLANE": 28417.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 20144.4,
+        "Smallbulk": 55802.8,
+        "Pick-up": 22259.1,
+        "Cylinder Production": 40325.1
+      },
+      "tanks_end": {
+        "Tank 1": 66310.9,
+        "Tank 2": 63138.8,
+        "Tank 3": 98724.0,
+        "Tank 4": 120837.5,
+        "Tank 5": 38270.2,
+        "Tank 6": 18080.0,
+        "Tank 7": 34991.5,
+        "Tank 8": 20702.3,
+        "Tank 9": 22788.6,
+        "Tank 10": 33629.4
+      },
+      "total_purchases": 173022.8,
+      "total_withdrawals": 138531.4
+    },
+    {
+      "date": "2025-03-17",
+      "beginning_total": 517473.2,
+      "ending_total": 492724.1,
+      "gain_loss": 5115.3,
+      "purchases": {
+        "BRENT GAS": 140584.4,
+        "LIQUIGAZ": 29666.1,
+        "SOLANE": 33934.7,
+        "PETRON": 22876.4
+      },
+      "withdrawals": {
+        "BACKLOAD": 8324.1,
+        "Smallbulk": 9303.4,
+        "Pick-up": 21554.7,
+        "Cylinder Production": 39033.3
+      },
+      "tanks_end": {
+        "Tank 1": 112285.5,
+        "Tank 2": 75352.4,
+        "Tank 3": 58588.2,
+        "Tank 4": 84253.6,
+        "Tank 5": 18629.0,
+        "Tank 6": 35431.8,
+        "Tank 7": 26847.3,
+        "Tank 8": 32130.6,
+        "Tank 9": 22794.1,
+        "Tank 10": 26411.6
+      },
+      "total_purchases": 227061.6,
+      "total_withdrawals": 78215.5
+    },
+    {
+      "date": "2025-03-18",
+      "beginning_total": 492724.1,
+      "ending_total": 517922.9,
+      "gain_loss": -5901.5,
+      "purchases": {
+        "BRENT GAS": 91851.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 20169.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 22858.3,
+        "Smallbulk": 43184.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 41236.0
+      },
+      "tanks_end": {
+        "Tank 1": 65820.4,
+        "Tank 2": 118375.3,
+        "Tank 3": 90645.7,
+        "Tank 4": 78047.4,
+        "Tank 5": 19123.6,
+        "Tank 6": 23736.0,
+        "Tank 7": 25034.9,
+        "Tank 8": 36822.9,
+        "Tank 9": 28140.0,
+        "Tank 10": 32176.7
+      },
+      "total_purchases": 112021.3,
+      "total_withdrawals": 107278.4
+    },
+    {
+      "date": "2025-03-19",
+      "beginning_total": 517922.9,
+      "ending_total": 500586.7,
+      "gain_loss": -3634.9,
+      "purchases": {
+        "BRENT GAS": 156969.3,
+        "LIQUIGAZ": 68938.7,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4231.6,
+        "Smallbulk": 49506.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 79419.3
+      },
+      "tanks_end": {
+        "Tank 1": 48749.1,
+        "Tank 2": 46857.9,
+        "Tank 3": 108575.6,
+        "Tank 4": 116053.6,
+        "Tank 5": 31674.8,
+        "Tank 6": 34107.5,
+        "Tank 7": 25200.3,
+        "Tank 8": 36086.8,
+        "Tank 9": 20620.5,
+        "Tank 10": 32660.6
+      },
+      "total_purchases": 225908.0,
+      "total_withdrawals": 133157.8
+    },
+    {
+      "date": "2025-03-20",
+      "beginning_total": 500586.7,
+      "ending_total": 497154.5,
+      "gain_loss": 18384.7,
+      "purchases": {
+        "BRENT GAS": 21828.3,
+        "LIQUIGAZ": 41138.4,
+        "SOLANE": 32668.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 165.3,
+        "Smallbulk": 9007.3,
+        "Pick-up": 0.0,
+        "Cylinder Production": 105265.9
+      },
+      "tanks_end": {
+        "Tank 1": 46136.0,
+        "Tank 2": 107295.8,
+        "Tank 3": 96606.6,
+        "Tank 4": 106758.8,
+        "Tank 5": 38239.7,
+        "Tank 6": 17680.4,
+        "Tank 7": 17406.3,
+        "Tank 8": 18753.0,
+        "Tank 9": 19855.2,
+        "Tank 10": 28422.6
+      },
+      "total_purchases": 95635.3,
+      "total_withdrawals": 114438.5
+    },
+    {
+      "date": "2025-03-21",
+      "beginning_total": 497154.5,
+      "ending_total": 516670.1,
+      "gain_loss": -2627.1,
+      "purchases": {
+        "BRENT GAS": 183042.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 26932.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17101.0,
+        "Smallbulk": 63567.5,
+        "Pick-up": 19739.0,
+        "Cylinder Production": 37199.5
+      },
+      "tanks_end": {
+        "Tank 1": 88780.3,
+        "Tank 2": 104776.4,
+        "Tank 3": 58976.3,
+        "Tank 4": 54672.4,
+        "Tank 5": 23202.5,
+        "Tank 6": 33300.9,
+        "Tank 7": 31273.4,
+        "Tank 8": 42047.9,
+        "Tank 9": 35329.9,
+        "Tank 10": 44310.1
+      },
+      "total_purchases": 209975.5,
+      "total_withdrawals": 137607.0
+    },
+    {
+      "date": "2025-03-22",
+      "beginning_total": 516670.1,
+      "ending_total": 494948.3,
+      "gain_loss": 22117.6,
+      "purchases": {
+        "BRENT GAS": 39072.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 37098.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1858.7,
+        "Smallbulk": 84441.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 101515.0
+      },
+      "tanks_end": {
+        "Tank 1": 64181.0,
+        "Tank 2": 110431.1,
+        "Tank 3": 83664.5,
+        "Tank 4": 95475.3,
+        "Tank 5": 30882.8,
+        "Tank 6": 23390.8,
+        "Tank 7": 15733.3,
+        "Tank 8": 17770.9,
+        "Tank 9": 19630.1,
+        "Tank 10": 33788.5
+      },
+      "total_purchases": 76171.0,
+      "total_withdrawals": 187815.2
+    },
+    {
+      "date": "2025-03-23",
+      "beginning_total": 494948.3,
+      "ending_total": 485261.0,
+      "gain_loss": -7396.4,
+      "purchases": {
+        "BRENT GAS": 97831.3,
+        "LIQUIGAZ": 38567.3,
+        "SOLANE": 21078.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 45152.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 89213.4
+      },
+      "tanks_end": {
+        "Tank 1": 109502.4,
+        "Tank 2": 69767.8,
+        "Tank 3": 96595.5,
+        "Tank 4": 43635.9,
+        "Tank 5": 20328.3,
+        "Tank 6": 37396.0,
+        "Tank 7": 25484.2,
+        "Tank 8": 22285.6,
+        "Tank 9": 36175.3,
+        "Tank 10": 24089.9
+      },
+      "total_purchases": 157477.5,
+      "total_withdrawals": 134365.9
+    },
+    {
+      "date": "2025-03-24",
+      "beginning_total": 485261.0,
+      "ending_total": 432240.1,
+      "gain_loss": 1322.9,
+      "purchases": {
+        "BRENT GAS": 155939.0,
+        "LIQUIGAZ": 23313.0,
+        "SOLANE": 35557.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17791.9,
+        "Smallbulk": 70870.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 30400.0
+      },
+      "tanks_end": {
+        "Tank 1": 73684.8,
+        "Tank 2": 77953.3,
+        "Tank 3": 70503.0,
+        "Tank 4": 59159.4,
+        "Tank 5": 21231.8,
+        "Tank 6": 28434.2,
+        "Tank 7": 31351.4,
+        "Tank 8": 27310.2,
+        "Tank 9": 16793.0,
+        "Tank 10": 25819.1
+      },
+      "total_purchases": 214809.2,
+      "total_withdrawals": 119062.6
+    },
+    {
+      "date": "2025-03-25",
+      "beginning_total": 432240.1,
+      "ending_total": 400465.8,
+      "gain_loss": -7932.1,
+      "purchases": {
+        "BRENT GAS": 38612.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 20508.2
+      },
+      "withdrawals": {
+        "BACKLOAD": 22630.2,
+        "Smallbulk": 56616.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 40690.7
+      },
+      "tanks_end": {
+        "Tank 1": 64469.3,
+        "Tank 2": 78463.7,
+        "Tank 3": 47131.2,
+        "Tank 4": 74203.4,
+        "Tank 5": 24404.7,
+        "Tank 6": 25938.5,
+        "Tank 7": 16042.1,
+        "Tank 8": 20288.7,
+        "Tank 9": 20164.6,
+        "Tank 10": 29359.6
+      },
+      "total_purchases": 59121.1,
+      "total_withdrawals": 119937.5
+    },
+    {
+      "date": "2025-03-26",
+      "beginning_total": 400465.8,
+      "ending_total": 383104.4,
+      "gain_loss": -10130.3,
+      "purchases": {
+        "BRENT GAS": 138761.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 8238.5,
+        "Smallbulk": 77315.4,
+        "Pick-up": 19768.7,
+        "Cylinder Production": 40481.6
+      },
+      "tanks_end": {
+        "Tank 1": 52379.6,
+        "Tank 2": 88687.0,
+        "Tank 3": 45437.4,
+        "Tank 4": 52004.0,
+        "Tank 5": 29896.4,
+        "Tank 6": 29976.5,
+        "Tank 7": 16895.6,
+        "Tank 8": 24689.0,
+        "Tank 9": 20749.9,
+        "Tank 10": 22389.1
+      },
+      "total_purchases": 138761.3,
+      "total_withdrawals": 145804.2
+    },
+    {
+      "date": "2025-03-27",
+      "beginning_total": 383104.4,
+      "ending_total": 393280.8,
+      "gain_loss": -1845.5,
+      "purchases": {
+        "BRENT GAS": 68484.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 20505.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17042.8,
+        "Smallbulk": 89005.4,
+        "Pick-up": 10617.3,
+        "Cylinder Production": 63761.0
+      },
+      "tanks_end": {
+        "Tank 1": 48101.2,
+        "Tank 2": 70181.5,
+        "Tank 3": 77117.9,
+        "Tank 4": 75836.0,
+        "Tank 5": 18193.3,
+        "Tank 6": 19846.1,
+        "Tank 7": 22303.1,
+        "Tank 8": 15129.8,
+        "Tank 9": 22767.4,
+        "Tank 10": 23804.5
+      },
+      "total_purchases": 88990.4,
+      "total_withdrawals": 180426.5
+    },
+    {
+      "date": "2025-03-28",
+      "beginning_total": 393280.8,
+      "ending_total": 425233.7,
+      "gain_loss": -5641.1,
+      "purchases": {
+        "BRENT GAS": 177815.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 26817.7,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 13591.1,
+        "Smallbulk": 38560.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 79139.9
+      },
+      "tanks_end": {
+        "Tank 1": 43488.9,
+        "Tank 2": 87996.7,
+        "Tank 3": 80750.7,
+        "Tank 4": 61060.2,
+        "Tank 5": 26686.9,
+        "Tank 6": 13613.8,
+        "Tank 7": 33988.2,
+        "Tank 8": 27347.9,
+        "Tank 9": 21321.0,
+        "Tank 10": 28979.3
+      },
+      "total_purchases": 204633.1,
+      "total_withdrawals": 131291.0
+    },
+    {
+      "date": "2025-03-29",
+      "beginning_total": 425233.7,
+      "ending_total": 423251.8,
+      "gain_loss": -305.4,
+      "purchases": {
+        "BRENT GAS": 213143.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 29234.9,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 11144.5,
+        "Smallbulk": 73649.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 56562.5
+      },
+      "tanks_end": {
+        "Tank 1": 44895.1,
+        "Tank 2": 50802.4,
+        "Tank 3": 73802.2,
+        "Tank 4": 114107.8,
+        "Tank 5": 17217.7,
+        "Tank 6": 37517.7,
+        "Tank 7": 17848.1,
+        "Tank 8": 22038.4,
+        "Tank 9": 25569.6,
+        "Tank 10": 19453.0
+      },
+      "total_purchases": 242378.3,
+      "total_withdrawals": 141356.1
+    },
+    {
+      "date": "2025-03-30",
+      "beginning_total": 423251.8,
+      "ending_total": 429105.1,
+      "gain_loss": -25688.1,
+      "purchases": {
+        "BRENT GAS": 116585.2,
+        "LIQUIGAZ": 45166.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 21229.5,
+        "Smallbulk": 65556.8,
+        "Pick-up": 3780.1,
+        "Cylinder Production": 48781.3
+      },
+      "tanks_end": {
+        "Tank 1": 54249.7,
+        "Tank 2": 53224.7,
+        "Tank 3": 81840.0,
+        "Tank 4": 110376.6,
+        "Tank 5": 19453.0,
+        "Tank 6": 23585.9,
+        "Tank 7": 18321.8,
+        "Tank 8": 29204.1,
+        "Tank 9": 24232.3,
+        "Tank 10": 14616.8
+      },
+      "total_purchases": 161751.5,
+      "total_withdrawals": 139347.7
+    },
+    {
+      "date": "2025-03-31",
+      "beginning_total": 429105.1,
+      "ending_total": 432343.4,
+      "gain_loss": 19494.4,
+      "purchases": {
+        "BRENT GAS": 142821.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 82118.2,
+        "Pick-up": 0.0,
+        "Cylinder Production": 65231.4
+      },
+      "tanks_end": {
+        "Tank 1": 52278.4,
+        "Tank 2": 89386.6,
+        "Tank 3": 68682.5,
+        "Tank 4": 75568.6,
+        "Tank 5": 24321.2,
+        "Tank 6": 24616.7,
+        "Tank 7": 24115.9,
+        "Tank 8": 19189.4,
+        "Tank 9": 29442.8,
+        "Tank 10": 24741.4
+      },
+      "total_purchases": 142821.4,
+      "total_withdrawals": 147349.6
+    },
+    {
+      "date": "2025-04-01",
+      "beginning_total": 432343.4,
+      "ending_total": 461251.3,
+      "gain_loss": -4369.7,
+      "purchases": {
+        "BRENT GAS": 182747.7,
+        "LIQUIGAZ": 36441.6,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4576.1,
+        "Smallbulk": 51420.1,
+        "Pick-up": 0.0,
+        "Cylinder Production": 59545.7
+      },
+      "tanks_end": {
+        "Tank 1": 53397.8,
+        "Tank 2": 84623.8,
+        "Tank 3": 88646.0,
+        "Tank 4": 85301.3,
+        "Tank 5": 36641.3,
+        "Tank 6": 26342.8,
+        "Tank 7": 24832.3,
+        "Tank 8": 16747.2,
+        "Tank 9": 20780.7,
+        "Tank 10": 23938.0
+      },
+      "total_purchases": 219189.3,
+      "total_withdrawals": 115541.9
+    },
+    {
+      "date": "2025-04-02",
+      "beginning_total": 461251.3,
+      "ending_total": 484800.4,
+      "gain_loss": 16639.2,
+      "purchases": {
+        "BRENT GAS": 30722.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 35934.8,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 17117.4,
+        "Smallbulk": 79390.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 32376.3
+      },
+      "tanks_end": {
+        "Tank 1": 103488.4,
+        "Tank 2": 67388.3,
+        "Tank 3": 66061.4,
+        "Tank 4": 86287.9,
+        "Tank 5": 19284.1,
+        "Tank 6": 26702.5,
+        "Tank 7": 34020.5,
+        "Tank 8": 34620.9,
+        "Tank 9": 29073.5,
+        "Tank 10": 17872.9
+      },
+      "total_purchases": 66657.1,
+      "total_withdrawals": 128884.5
+    },
+    {
+      "date": "2025-04-03",
+      "beginning_total": 484800.4,
+      "ending_total": 490998.9,
+      "gain_loss": -13611.0,
+      "purchases": {
+        "BRENT GAS": 42841.3,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 78556.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 106947.1
+      },
+      "tanks_end": {
+        "Tank 1": 74527.1,
+        "Tank 2": 67229.6,
+        "Tank 3": 101002.8,
+        "Tank 4": 73757.9,
+        "Tank 5": 37929.5,
+        "Tank 6": 32679.3,
+        "Tank 7": 19725.4,
+        "Tank 8": 33522.7,
+        "Tank 9": 28165.5,
+        "Tank 10": 22459.2
+      },
+      "total_purchases": 42841.3,
+      "total_withdrawals": 185503.1
+    },
+    {
+      "date": "2025-04-04",
+      "beginning_total": 490998.9,
+      "ending_total": 461227.6,
+      "gain_loss": 685.1,
+      "purchases": {
+        "BRENT GAS": 162150.8,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7027.1,
+        "Smallbulk": 35510.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 50585.4
+      },
+      "tanks_end": {
+        "Tank 1": 86682.6,
+        "Tank 2": 94348.7,
+        "Tank 3": 75934.6,
+        "Tank 4": 40808.4,
+        "Tank 5": 30994.2,
+        "Tank 6": 27444.3,
+        "Tank 7": 30112.1,
+        "Tank 8": 31589.9,
+        "Tank 9": 29075.2,
+        "Tank 10": 14237.5
+      },
+      "total_purchases": 162150.8,
+      "total_withdrawals": 93123.1
+    },
+    {
+      "date": "2025-04-05",
+      "beginning_total": 461227.6,
+      "ending_total": 485057.5,
+      "gain_loss": 32281.6,
+      "purchases": {
+        "BRENT GAS": 193215.8,
+        "LIQUIGAZ": 62106.5,
+        "SOLANE": 34752.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6717.9,
+        "Smallbulk": 46419.3,
+        "Pick-up": 14573.4,
+        "Cylinder Production": 37168.3
+      },
+      "tanks_end": {
+        "Tank 1": 78715.9,
+        "Tank 2": 61712.2,
+        "Tank 3": 108851.7,
+        "Tank 4": 68219.3,
+        "Tank 5": 36616.2,
+        "Tank 6": 21742.2,
+        "Tank 7": 13986.8,
+        "Tank 8": 32411.2,
+        "Tank 9": 31422.4,
+        "Tank 10": 31379.6
+      },
+      "total_purchases": 290074.7,
+      "total_withdrawals": 104878.9
+    },
+    {
+      "date": "2025-04-06",
+      "beginning_total": 485057.5,
+      "ending_total": 494262.0,
+      "gain_loss": -12099.8,
+      "purchases": {
+        "BRENT GAS": 111689.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6713.4,
+        "Smallbulk": 36709.2,
+        "Pick-up": 13292.5,
+        "Cylinder Production": 67371.0
+      },
+      "tanks_end": {
+        "Tank 1": 82363.0,
+        "Tank 2": 112463.8,
+        "Tank 3": 56125.3,
+        "Tank 4": 60670.9,
+        "Tank 5": 40488.9,
+        "Tank 6": 30884.9,
+        "Tank 7": 20954.0,
+        "Tank 8": 42673.3,
+        "Tank 9": 30343.1,
+        "Tank 10": 17294.8
+      },
+      "total_purchases": 111689.9,
+      "total_withdrawals": 124086.1
+    },
+    {
+      "date": "2025-04-07",
+      "beginning_total": 494262.0,
+      "ending_total": 527151.5,
+      "gain_loss": -18981.1,
+      "purchases": {
+        "BRENT GAS": 211606.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 16364.7,
+        "Smallbulk": 39606.7,
+        "Pick-up": 0.0,
+        "Cylinder Production": 60518.3
+      },
+      "tanks_end": {
+        "Tank 1": 76377.3,
+        "Tank 2": 110227.5,
+        "Tank 3": 70245.0,
+        "Tank 4": 106450.4,
+        "Tank 5": 36864.4,
+        "Tank 6": 16739.5,
+        "Tank 7": 30365.6,
+        "Tank 8": 20509.3,
+        "Tank 9": 23187.2,
+        "Tank 10": 36185.2
+      },
+      "total_purchases": 211606.4,
+      "total_withdrawals": 116489.7
+    },
+    {
+      "date": "2025-04-08",
+      "beginning_total": 527151.5,
+      "ending_total": 524849.2,
+      "gain_loss": -8544.4,
+      "purchases": {
+        "BRENT GAS": 21857.4,
+        "LIQUIGAZ": 68660.8,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 34634.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 89556.5
+      },
+      "tanks_end": {
+        "Tank 1": 107662.9,
+        "Tank 2": 57717.0,
+        "Tank 3": 126978.9,
+        "Tank 4": 58499.0,
+        "Tank 5": 29909.0,
+        "Tank 6": 15891.3,
+        "Tank 7": 33118.2,
+        "Tank 8": 27481.3,
+        "Tank 9": 35062.6,
+        "Tank 10": 32529.0
+      },
+      "total_purchases": 90518.2,
+      "total_withdrawals": 124191.4
+    },
+    {
+      "date": "2025-04-09",
+      "beginning_total": 524849.2,
+      "ending_total": 578071.2,
+      "gain_loss": 2664.6,
+      "purchases": {
+        "BRENT GAS": 50274.8,
+        "LIQUIGAZ": 60567.1,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9600.8,
+        "Smallbulk": 34732.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 36487.2
+      },
+      "tanks_end": {
+        "Tank 1": 91073.1,
+        "Tank 2": 94807.6,
+        "Tank 3": 95415.3,
+        "Tank 4": 109145.7,
+        "Tank 5": 34018.6,
+        "Tank 6": 38222.6,
+        "Tank 7": 33162.1,
+        "Tank 8": 23634.5,
+        "Tank 9": 29405.7,
+        "Tank 10": 29186.0
+      },
+      "total_purchases": 110841.9,
+      "total_withdrawals": 80820.8
+    },
+    {
+      "date": "2025-04-10",
+      "beginning_total": 578071.2,
+      "ending_total": 566557.7,
+      "gain_loss": 5094.0,
+      "purchases": {
+        "BRENT GAS": 169568.7,
+        "LIQUIGAZ": 21383.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 14848.2,
+        "Smallbulk": 91104.2,
+        "Pick-up": 22698.3,
+        "Cylinder Production": 40162.7
+      },
+      "tanks_end": {
+        "Tank 1": 118198.4,
+        "Tank 2": 94263.7,
+        "Tank 3": 77651.5,
+        "Tank 4": 103640.2,
+        "Tank 5": 36723.4,
+        "Tank 6": 41954.1,
+        "Tank 7": 36931.9,
+        "Tank 8": 16369.9,
+        "Tank 9": 17757.0,
+        "Tank 10": 23067.6
+      },
+      "total_purchases": 190952.0,
+      "total_withdrawals": 168813.4
+    },
+    {
+      "date": "2025-04-11",
+      "beginning_total": 566557.7,
+      "ending_total": 609698.6,
+      "gain_loss": 11661.3,
+      "purchases": {
+        "BRENT GAS": 27965.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 31828.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2060.7,
+        "Smallbulk": 60364.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 69370.5
+      },
+      "tanks_end": {
+        "Tank 1": 72077.0,
+        "Tank 2": 127506.1,
+        "Tank 3": 102610.5,
+        "Tank 4": 89262.5,
+        "Tank 5": 37194.1,
+        "Tank 6": 43310.5,
+        "Tank 7": 38622.5,
+        "Tank 8": 19838.3,
+        "Tank 9": 39160.7,
+        "Tank 10": 40116.3
+      },
+      "total_purchases": 59794.0,
+      "total_withdrawals": 131795.2
+    },
+    {
+      "date": "2025-04-12",
+      "beginning_total": 609698.6,
+      "ending_total": 611457.0,
+      "gain_loss": -5359.9,
+      "purchases": {
+        "BRENT GAS": 189293.6,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 27974.2,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 68171.6,
+        "Pick-up": 0.0,
+        "Cylinder Production": 103382.2
+      },
+      "tanks_end": {
+        "Tank 1": 101750.7,
+        "Tank 2": 125661.3,
+        "Tank 3": 119938.8,
+        "Tank 4": 69005.2,
+        "Tank 5": 21774.5,
+        "Tank 6": 41830.0,
+        "Tank 7": 26122.7,
+        "Tank 8": 45057.9,
+        "Tank 9": 41532.8,
+        "Tank 10": 18783.1
+      },
+      "total_purchases": 217267.8,
+      "total_withdrawals": 171553.8
+    },
+    {
+      "date": "2025-04-13",
+      "beginning_total": 611457.0,
+      "ending_total": 595536.6,
+      "gain_loss": -20157.5,
+      "purchases": {
+        "BRENT GAS": 181421.6,
+        "LIQUIGAZ": 21960.1,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12490.3,
+        "Smallbulk": 39253.5,
+        "Pick-up": 0.0,
+        "Cylinder Production": 74191.2
+      },
+      "tanks_end": {
+        "Tank 1": 129240.3,
+        "Tank 2": 80321.8,
+        "Tank 3": 108069.5,
+        "Tank 4": 62078.6,
+        "Tank 5": 47702.7,
+        "Tank 6": 27306.5,
+        "Tank 7": 34800.8,
+        "Tank 8": 31872.4,
+        "Tank 9": 24190.7,
+        "Tank 10": 49953.3
+      },
+      "total_purchases": 203381.7,
+      "total_withdrawals": 125935.0
+    },
+    {
+      "date": "2025-04-14",
+      "beginning_total": 595536.6,
+      "ending_total": 562475.2,
+      "gain_loss": -7318.1,
+      "purchases": {
+        "BRENT GAS": 191497.0,
+        "LIQUIGAZ": 74664.8,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 39688.7,
+        "Pick-up": 11546.9,
+        "Cylinder Production": 43809.5
+      },
+      "tanks_end": {
+        "Tank 1": 109385.0,
+        "Tank 2": 123343.3,
+        "Tank 3": 121188.6,
+        "Tank 4": 51415.2,
+        "Tank 5": 27547.9,
+        "Tank 6": 22745.1,
+        "Tank 7": 37526.1,
+        "Tank 8": 23927.3,
+        "Tank 9": 29860.1,
+        "Tank 10": 15536.7
+      },
+      "total_purchases": 266161.8,
+      "total_withdrawals": 95045.1
+    },
+    {
+      "date": "2025-04-15",
+      "beginning_total": 562475.2,
+      "ending_total": 556781.5,
+      "gain_loss": 11109.7,
+      "purchases": {
+        "BRENT GAS": 60134.2,
+        "LIQUIGAZ": 36842.4,
+        "SOLANE": 28206.4,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4885.6,
+        "Smallbulk": 72641.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 61572.8
+      },
+      "tanks_end": {
+        "Tank 1": 65940.6,
+        "Tank 2": 75102.8,
+        "Tank 3": 114938.0,
+        "Tank 4": 117977.2,
+        "Tank 5": 41312.6,
+        "Tank 6": 15746.0,
+        "Tank 7": 33404.9,
+        "Tank 8": 38566.6,
+        "Tank 9": 35287.3,
+        "Tank 10": 18505.5
+      },
+      "total_purchases": 125183.0,
+      "total_withdrawals": 139099.4
+    },
+    {
+      "date": "2025-04-16",
+      "beginning_total": 556781.5,
+      "ending_total": 595169.6,
+      "gain_loss": 2589.5,
+      "purchases": {
+        "BRENT GAS": 125962.9,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 39933.1,
+        "PETRON": 20558.2
+      },
+      "withdrawals": {
+        "BACKLOAD": 22432.2,
+        "Smallbulk": 67572.0,
+        "Pick-up": 8567.3,
+        "Cylinder Production": 36537.5
+      },
+      "tanks_end": {
+        "Tank 1": 74236.9,
+        "Tank 2": 78229.0,
+        "Tank 3": 150000,
+        "Tank 4": 72053.7,
+        "Tank 5": 41310.5,
+        "Tank 6": 36650.9,
+        "Tank 7": 50000,
+        "Tank 8": 29698.3,
+        "Tank 9": 30547.8,
+        "Tank 10": 32442.6
+      },
+      "total_purchases": 186454.2,
+      "total_withdrawals": 135109.0
+    },
+    {
+      "date": "2025-04-17",
+      "beginning_total": 595169.6,
+      "ending_total": 616563.2,
+      "gain_loss": -24059.1,
+      "purchases": {
+        "BRENT GAS": 180163.4,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 14617.7,
+        "Smallbulk": 21971.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 71266.2
+      },
+      "tanks_end": {
+        "Tank 1": 150000,
+        "Tank 2": 81736.6,
+        "Tank 3": 91694.3,
+        "Tank 4": 87411.4,
+        "Tank 5": 24353.3,
+        "Tank 6": 25596.3,
+        "Tank 7": 43019.4,
+        "Tank 8": 47646.3,
+        "Tank 9": 43376.3,
+        "Tank 10": 21729.3
+      },
+      "total_purchases": 180163.4,
+      "total_withdrawals": 107855.8
+    },
+    {
+      "date": "2025-04-18",
+      "beginning_total": 616563.2,
+      "ending_total": 634387.1,
+      "gain_loss": -2918.3,
+      "purchases": {
+        "BRENT GAS": 187185.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 25826.3,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 42373.3,
+        "Pick-up": 10400.6,
+        "Cylinder Production": 49238.7
+      },
+      "tanks_end": {
+        "Tank 1": 107982.7,
+        "Tank 2": 142633.3,
+        "Tank 3": 75319.1,
+        "Tank 4": 62361.6,
+        "Tank 5": 48439.0,
+        "Tank 6": 50000,
+        "Tank 7": 24799.7,
+        "Tank 8": 48212.6,
+        "Tank 9": 32960.1,
+        "Tank 10": 41679.0
+      },
+      "total_purchases": 213011.3,
+      "total_withdrawals": 102012.6
+    },
+    {
+      "date": "2025-04-19",
+      "beginning_total": 634387.1,
+      "ending_total": 566397.8,
+      "gain_loss": 12847.1,
+      "purchases": {
+        "BRENT GAS": 148937.0,
+        "LIQUIGAZ": 34046.9,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 3219.8,
+        "Smallbulk": 78495.3,
+        "Pick-up": 0.0,
+        "Cylinder Production": 65496.6
+      },
+      "tanks_end": {
+        "Tank 1": 71150.3,
+        "Tank 2": 109588.6,
+        "Tank 3": 133055.4,
+        "Tank 4": 92648.1,
+        "Tank 5": 19344.6,
+        "Tank 6": 39980.7,
+        "Tank 7": 23868.9,
+        "Tank 8": 25191.8,
+        "Tank 9": 24321.6,
+        "Tank 10": 27248.0
+      },
+      "total_purchases": 182983.9,
+      "total_withdrawals": 147211.7
+    },
+    {
+      "date": "2025-04-20",
+      "beginning_total": 566397.8,
+      "ending_total": 584839.9,
+      "gain_loss": 20859.3,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 24953.9,
+        "Pick-up": 0.0,
+        "Cylinder Production": 78568.1
+      },
+      "tanks_end": {
+        "Tank 1": 102152.1,
+        "Tank 2": 101612.3,
+        "Tank 3": 115956.9,
+        "Tank 4": 100658.9,
+        "Tank 5": 23162.0,
+        "Tank 6": 27718.6,
+        "Tank 7": 26248.0,
+        "Tank 8": 36766.6,
+        "Tank 9": 26683.3,
+        "Tank 10": 23881.3
+      },
+      "total_purchases": 0.0,
+      "total_withdrawals": 103522.0
+    },
+    {
+      "date": "2025-04-21",
+      "beginning_total": 584839.9,
+      "ending_total": 598938.9,
+      "gain_loss": 3645.8,
+      "purchases": {
+        "BRENT GAS": 55963.2,
+        "LIQUIGAZ": 31579.3,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 19171.1,
+        "Smallbulk": 90788.3,
+        "Pick-up": 2303.1,
+        "Cylinder Production": 50522.6
+      },
+      "tanks_end": {
+        "Tank 1": 110494.2,
+        "Tank 2": 118465.7,
+        "Tank 3": 50465.6,
+        "Tank 4": 124712.9,
+        "Tank 5": 21124.5,
+        "Tank 6": 37626.6,
+        "Tank 7": 36334.2,
+        "Tank 8": 24687.4,
+        "Tank 9": 37435.0,
+        "Tank 10": 37592.9
+      },
+      "total_purchases": 87542.5,
+      "total_withdrawals": 162785.1
+    },
+    {
+      "date": "2025-04-22",
+      "beginning_total": 598938.9,
+      "ending_total": 582076.1,
+      "gain_loss": 869.6,
+      "purchases": {
+        "BRENT GAS": 55220.1,
+        "LIQUIGAZ": 67985.0,
+        "SOLANE": 0.0,
+        "PETRON": 24203.4
+      },
+      "withdrawals": {
+        "BACKLOAD": 14090.2,
+        "Smallbulk": 23999.9,
+        "Pick-up": 22724.1,
+        "Cylinder Production": 67901.5
+      },
+      "tanks_end": {
+        "Tank 1": 99051.3,
+        "Tank 2": 118704.0,
+        "Tank 3": 75345.0,
+        "Tank 4": 90770.2,
+        "Tank 5": 29757.8,
+        "Tank 6": 40868.6,
+        "Tank 7": 21879.9,
+        "Tank 8": 50000,
+        "Tank 9": 29131.4,
+        "Tank 10": 26568.0
+      },
+      "total_purchases": 147408.5,
+      "total_withdrawals": 128715.7
+    },
+    {
+      "date": "2025-04-23",
+      "beginning_total": 582076.1,
+      "ending_total": 563044.5,
+      "gain_loss": -16175.0,
+      "purchases": {
+        "BRENT GAS": 163387.5,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 18482.1,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 21162.0,
+        "Smallbulk": 89647.5,
+        "Pick-up": 8592.6,
+        "Cylinder Production": 60460.9
+      },
+      "tanks_end": {
+        "Tank 1": 68280.9,
+        "Tank 2": 87980.2,
+        "Tank 3": 71756.9,
+        "Tank 4": 73822.9,
+        "Tank 5": 50000,
+        "Tank 6": 45358.3,
+        "Tank 7": 50000,
+        "Tank 8": 40691.5,
+        "Tank 9": 25153.9,
+        "Tank 10": 50000
+      },
+      "total_purchases": 181869.6,
+      "total_withdrawals": 179863.0
+    },
+    {
+      "date": "2025-04-24",
+      "beginning_total": 563044.5,
+      "ending_total": 561514.9,
+      "gain_loss": -11808.4,
+      "purchases": {
+        "BRENT GAS": 158712.1,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 3183.7,
+        "Smallbulk": 88647.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 106559.8
+      },
+      "tanks_end": {
+        "Tank 1": 120544.9,
+        "Tank 2": 47930.6,
+        "Tank 3": 92302.9,
+        "Tank 4": 117108.3,
+        "Tank 5": 40242.5,
+        "Tank 6": 20868.5,
+        "Tank 7": 29811.7,
+        "Tank 8": 39442.2,
+        "Tank 9": 18786.1,
+        "Tank 10": 34477.1
+      },
+      "total_purchases": 158712.1,
+      "total_withdrawals": 198390.5
+    },
+    {
+      "date": "2025-04-25",
+      "beginning_total": 561514.9,
+      "ending_total": 608346.6,
+      "gain_loss": -2016.7,
+      "purchases": {
+        "BRENT GAS": 67599.2,
+        "LIQUIGAZ": 28409.0,
+        "SOLANE": 19952.0,
+        "PETRON": 23834.6
+      },
+      "withdrawals": {
+        "BACKLOAD": 11165.7,
+        "Smallbulk": 29211.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 38318.7
+      },
+      "tanks_end": {
+        "Tank 1": 54297.4,
+        "Tank 2": 90023.3,
+        "Tank 3": 122218.9,
+        "Tank 4": 144186.0,
+        "Tank 5": 45444.4,
+        "Tank 6": 33324.9,
+        "Tank 7": 29784.1,
+        "Tank 8": 34963.9,
+        "Tank 9": 21199.6,
+        "Tank 10": 32904.0
+      },
+      "total_purchases": 139794.8,
+      "total_withdrawals": 78695.4
+    },
+    {
+      "date": "2025-04-26",
+      "beginning_total": 608346.6,
+      "ending_total": 577338.9,
+      "gain_loss": 3002.4,
+      "purchases": {
+        "BRENT GAS": 192810.1,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 19621.6,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 22458.9,
+        "Pick-up": 8635.5,
+        "Cylinder Production": 72122.6
+      },
+      "tanks_end": {
+        "Tank 1": 129822.6,
+        "Tank 2": 59277.4,
+        "Tank 3": 103174.3,
+        "Tank 4": 104893.2,
+        "Tank 5": 31140.5,
+        "Tank 6": 17944.8,
+        "Tank 7": 44568.7,
+        "Tank 8": 21859.1,
+        "Tank 9": 43029.7,
+        "Tank 10": 21628.6
+      },
+      "total_purchases": 212431.7,
+      "total_withdrawals": 103217.0
+    },
+    {
+      "date": "2025-04-27",
+      "beginning_total": 577338.9,
+      "ending_total": 563895.5,
+      "gain_loss": 3849.3,
+      "purchases": {
+        "BRENT GAS": 40251.6,
+        "LIQUIGAZ": 29779.0,
+        "SOLANE": 33884.8,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 56600.4,
+        "Pick-up": 0.0,
+        "Cylinder Production": 57783.8
+      },
+      "tanks_end": {
+        "Tank 1": 94658.7,
+        "Tank 2": 82200.0,
+        "Tank 3": 116607.9,
+        "Tank 4": 110820.9,
+        "Tank 5": 24438.8,
+        "Tank 6": 19009.9,
+        "Tank 7": 23538.6,
+        "Tank 8": 27314.6,
+        "Tank 9": 20764.0,
+        "Tank 10": 44542.0
+      },
+      "total_purchases": 103915.4,
+      "total_withdrawals": 114384.2
+    },
+    {
+      "date": "2025-04-28",
+      "beginning_total": 563895.5,
+      "ending_total": 600560.6,
+      "gain_loss": -7793.1,
+      "purchases": {
+        "BRENT GAS": 81670.7,
+        "LIQUIGAZ": 48324.0,
+        "SOLANE": 20005.0,
+        "PETRON": 21109.3
+      },
+      "withdrawals": {
+        "BACKLOAD": 9235.0,
+        "Smallbulk": 30380.2,
+        "Pick-up": 0.0,
+        "Cylinder Production": 50679.3
+      },
+      "tanks_end": {
+        "Tank 1": 61027.4,
+        "Tank 2": 126371.6,
+        "Tank 3": 118351.0,
+        "Tank 4": 63304.7,
+        "Tank 5": 29241.5,
+        "Tank 6": 35475.7,
+        "Tank 7": 49014.4,
+        "Tank 8": 36998.3,
+        "Tank 9": 35859.0,
+        "Tank 10": 44917.1
+      },
+      "total_purchases": 171109.0,
+      "total_withdrawals": 90294.5
+    },
+    {
+      "date": "2025-04-29",
+      "beginning_total": 600560.6,
+      "ending_total": 586603.5,
+      "gain_loss": -15204.1,
+      "purchases": {
+        "BRENT GAS": 183681.0,
+        "LIQUIGAZ": 51201.9,
+        "SOLANE": 28446.1,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 22569.4,
+        "Smallbulk": 50678.6,
+        "Pick-up": 20710.5,
+        "Cylinder Production": 82170.2
+      },
+      "tanks_end": {
+        "Tank 1": 106896.3,
+        "Tank 2": 62490.4,
+        "Tank 3": 119056.3,
+        "Tank 4": 67161.8,
+        "Tank 5": 46410.9,
+        "Tank 6": 46049.7,
+        "Tank 7": 41203.3,
+        "Tank 8": 21004.9,
+        "Tank 9": 29803.1,
+        "Tank 10": 46526.8
+      },
+      "total_purchases": 263329.0,
+      "total_withdrawals": 176128.7
+    },
+    {
+      "date": "2025-04-30",
+      "beginning_total": 586603.5,
+      "ending_total": 574939.6,
+      "gain_loss": -11088.4,
+      "purchases": {
+        "BRENT GAS": 107078.6,
+        "LIQUIGAZ": 56888.0,
+        "SOLANE": 23673.5,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9702.5,
+        "Smallbulk": 35720.8,
+        "Pick-up": 0.0,
+        "Cylinder Production": 97256.9
+      },
+      "tanks_end": {
+        "Tank 1": 110779.7,
+        "Tank 2": 97558.4,
+        "Tank 3": 89431.5,
+        "Tank 4": 81104.7,
+        "Tank 5": 26896.0,
+        "Tank 6": 19719.2,
+        "Tank 7": 31572.7,
+        "Tank 8": 36167.1,
+        "Tank 9": 41053.5,
+        "Tank 10": 40656.7
+      },
+      "total_purchases": 187640.1,
+      "total_withdrawals": 142680.2
+    },
+    {
+      "date": "2025-05-01",
+      "beginning_total": 574939.6,
+      "ending_total": 551399.2,
+      "gain_loss": -14166.1,
+      "purchases": {
+        "BRENT GAS": 72740.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 18660.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 24020.0,
+        "Smallbulk": 53740.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 71054.4
+      },
+      "tanks_end": {
+        "Tank 1": 17658.7,
+        "Tank 2": 83202.6,
+        "Tank 3": 121424.6,
+        "Tank 4": 123827.7,
+        "Tank 5": 48258.5,
+        "Tank 6": 38818.6,
+        "Tank 7": 38041.6,
+        "Tank 8": 32016.2,
+        "Tank 9": 41410.1,
+        "Tank 10": 6740.5
+      },
+      "total_purchases": 91400.0,
+      "total_withdrawals": 148814.4
+    },
+    {
+      "date": "2025-05-02",
+      "beginning_total": 551399.2,
+      "ending_total": 517923.4,
+      "gain_loss": 3567.7,
+      "purchases": {
+        "BRENT GAS": 91060.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 18660.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2430.0,
+        "Smallbulk": 55720.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 91043.4
+      },
+      "tanks_end": {
+        "Tank 1": 56057.0,
+        "Tank 2": 125714.9,
+        "Tank 3": 27009.6,
+        "Tank 4": 123992.9,
+        "Tank 5": 48267.1,
+        "Tank 6": 38837.9,
+        "Tank 7": 18422.2,
+        "Tank 8": 32051.0,
+        "Tank 9": 40537.3,
+        "Tank 10": 7033.5
+      },
+      "total_purchases": 109720.0,
+      "total_withdrawals": 149193.4
+    },
+    {
+      "date": "2025-05-03",
+      "beginning_total": 517923.4,
+      "ending_total": 490520.6,
+      "gain_loss": -2401.6,
+      "purchases": {
+        "BRENT GAS": 109000.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 5330.0,
+        "Smallbulk": 52940.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 81061.2
+      },
+      "tanks_end": {
+        "Tank 1": 117587.6,
+        "Tank 2": 125811.3,
+        "Tank 3": 30802.2,
+        "Tank 4": 47614.8,
+        "Tank 5": 48267.1,
+        "Tank 6": 38812.1,
+        "Tank 7": 9645.0,
+        "Tank 8": 32426.9,
+        "Tank 9": 31369.2,
+        "Tank 10": 8184.4
+      },
+      "total_purchases": 109000.0,
+      "total_withdrawals": 139331.2
+    },
+    {
+      "date": "2025-05-04",
+      "beginning_total": 490520.6,
+      "ending_total": 421593.6,
+      "gain_loss": -1600.1,
+      "purchases": {
+        "BRENT GAS": 0.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 8120.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 59206.9
+      },
+      "tanks_end": {
+        "Tank 1": 117611.2,
+        "Tank 2": 63476.9,
+        "Tank 3": 32315.0,
+        "Tank 4": 47665.7,
+        "Tank 5": 48267.1,
+        "Tank 6": 38810.5,
+        "Tank 7": 9645.0,
+        "Tank 8": 32438.8,
+        "Tank 9": 23077.6,
+        "Tank 10": 8285.9
+      },
+      "total_purchases": 0.0,
+      "total_withdrawals": 67326.9
+    },
+    {
+      "date": "2025-05-05",
+      "beginning_total": 421593.6,
+      "ending_total": 457016.8,
+      "gain_loss": 4894.4,
+      "purchases": {
+        "BRENT GAS": 167260.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 19110.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 980.0,
+        "Smallbulk": 63950.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 91891.2
+      },
+      "tanks_end": {
+        "Tank 1": 22267.3,
+        "Tank 2": 111406.8,
+        "Tank 3": 109131.6,
+        "Tank 4": 119169.2,
+        "Tank 5": 18907.7,
+        "Tank 6": 38931.6,
+        "Tank 7": 9562.0,
+        "Tank 8": 6789.8,
+        "Tank 9": 11496.5,
+        "Tank 10": 9354.3
+      },
+      "total_purchases": 186370.0,
+      "total_withdrawals": 156821.2
+    },
+    {
+      "date": "2025-05-06",
+      "beginning_total": 457016.8,
+      "ending_total": 459431.3,
+      "gain_loss": 14705.5,
+      "purchases": {
+        "BRENT GAS": 140300.0,
+        "LIQUIGAZ": 18630.0,
+        "SOLANE": 19120.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 10510.0,
+        "Smallbulk": 92480.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 97861.0
+      },
+      "tanks_end": {
+        "Tank 1": 123974.9,
+        "Tank 2": 65031.1,
+        "Tank 3": 117177.7,
+        "Tank 4": 90473.5,
+        "Tank 5": 7158.7,
+        "Tank 6": 12253.4,
+        "Tank 7": 9582.0,
+        "Tank 8": 6789.8,
+        "Tank 9": 17721.5,
+        "Tank 10": 9268.6
+      },
+      "total_purchases": 178050.0,
+      "total_withdrawals": 200851.0
+    },
+    {
+      "date": "2025-05-07",
+      "beginning_total": 459431.3,
+      "ending_total": 541247.4,
+      "gain_loss": -4305.6,
+      "purchases": {
+        "BRENT GAS": 166950.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 36510.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2990.0,
+        "Smallbulk": 47340.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 69998.4
+      },
+      "tanks_end": {
+        "Tank 1": 64949.7,
+        "Tank 2": 115353.1,
+        "Tank 3": 117566.7,
+        "Tank 4": 123874.0,
+        "Tank 5": 7222.7,
+        "Tank 6": 12488.0,
+        "Tank 7": 9674.4,
+        "Tank 8": 6845.7,
+        "Tank 9": 36911.9,
+        "Tank 10": 46361.2
+      },
+      "total_purchases": 203460.0,
+      "total_withdrawals": 120328.4
+    },
+    {
+      "date": "2025-05-08",
+      "beginning_total": 541247.4,
+      "ending_total": 493456.4,
+      "gain_loss": 11701.5,
+      "purchases": {
+        "BRENT GAS": 97080.0,
+        "LIQUIGAZ": 20460.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2110.0,
+        "Smallbulk": 72840.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 104192.5
+      },
+      "tanks_end": {
+        "Tank 1": 127868.5,
+        "Tank 2": 116037.9,
+        "Tank 3": 71664.2,
+        "Tank 4": 114174.0,
+        "Tank 5": 7273.6,
+        "Tank 6": 12408.7,
+        "Tank 7": 9743.2,
+        "Tank 8": 6958.2,
+        "Tank 9": 18881.0,
+        "Tank 10": 8447.1
+      },
+      "total_purchases": 117540.0,
+      "total_withdrawals": 179142.5
+    },
+    {
+      "date": "2025-05-09",
+      "beginning_total": 493456.4,
+      "ending_total": 494428.0,
+      "gain_loss": -4310.5,
+      "purchases": {
+        "BRENT GAS": 132530.0,
+        "LIQUIGAZ": 20780.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7060.0,
+        "Smallbulk": 46070.0,
+        "Pick-up": 23080.0,
+        "Cylinder Production": 78877.9
+      },
+      "tanks_end": {
+        "Tank 1": 74897.1,
+        "Tank 2": 116626.7,
+        "Tank 3": 118296.4,
+        "Tank 4": 121065.9,
+        "Tank 5": 7162.3,
+        "Tank 6": 12408.7,
+        "Tank 7": 9715.1,
+        "Tank 8": 6832.6,
+        "Tank 9": 18964.1,
+        "Tank 10": 8459.2
+      },
+      "total_purchases": 153310.0,
+      "total_withdrawals": 155087.9
+    },
+    {
+      "date": "2025-05-10",
+      "beginning_total": 494428.0,
+      "ending_total": 502116.6,
+      "gain_loss": 4184.8,
+      "purchases": {
+        "BRENT GAS": 166370.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4860.0,
+        "Smallbulk": 72620.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 90246.2
+      },
+      "tanks_end": {
+        "Tank 1": 125899.7,
+        "Tank 2": 81729.8,
+        "Tank 3": 118501.3,
+        "Tank 4": 98480.5,
+        "Tank 5": 7182.3,
+        "Tank 6": 12426.6,
+        "Tank 7": 9743.2,
+        "Tank 8": 6921.2,
+        "Tank 9": 32742.0,
+        "Tank 10": 8489.9
+      },
+      "total_purchases": 166370.0,
+      "total_withdrawals": 167726.2
+    },
+    {
+      "date": "2025-05-11",
+      "beginning_total": 502116.6,
+      "ending_total": 489830.4,
+      "gain_loss": -637.6,
+      "purchases": {
+        "BRENT GAS": 52140.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4090.0,
+        "Smallbulk": 11070.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 52718.6
+      },
+      "tanks_end": {
+        "Tank 1": 66170.7,
+        "Tank 2": 114148.1,
+        "Tank 3": 118501.3,
+        "Tank 4": 98480.5,
+        "Tank 5": 7182.3,
+        "Tank 6": 12426.6,
+        "Tank 7": 9743.2,
+        "Tank 8": 6907.6,
+        "Tank 9": 47833.9,
+        "Tank 10": 8436.2
+      },
+      "total_purchases": 52140.0,
+      "total_withdrawals": 67878.6
+    },
+    {
+      "date": "2025-05-12",
+      "beginning_total": 489830.4,
+      "ending_total": 577147.1,
+      "gain_loss": 5216.2,
+      "purchases": {
+        "BRENT GAS": 216370.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 850.0,
+        "Smallbulk": 70290.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 63979.5
+      },
+      "tanks_end": {
+        "Tank 1": 120613.1,
+        "Tank 2": 126967.8,
+        "Tank 3": 118389.0,
+        "Tank 4": 120203.2,
+        "Tank 5": 7098.0,
+        "Tank 6": 12373.3,
+        "Tank 7": 9635.9,
+        "Tank 8": 6729.0,
+        "Tank 9": 28120.7,
+        "Tank 10": 27017.0
+      },
+      "total_purchases": 216370.0,
+      "total_withdrawals": 135119.5
+    },
+    {
+      "date": "2025-05-13",
+      "beginning_total": 577147.1,
+      "ending_total": 615543.0,
+      "gain_loss": 15840.7,
+      "purchases": {
+        "BRENT GAS": 158970.0,
+        "LIQUIGAZ": 19090.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 3610.0,
+        "Smallbulk": 59960.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 95544.8
+      },
+      "tanks_end": {
+        "Tank 1": 72521.7,
+        "Tank 2": 127958.8,
+        "Tank 3": 118494.5,
+        "Tank 4": 112174.7,
+        "Tank 5": 32727.7,
+        "Tank 6": 12408.7,
+        "Tank 7": 28138.0,
+        "Tank 8": 32251.7,
+        "Tank 9": 30823.2,
+        "Tank 10": 48044.1
+      },
+      "total_purchases": 178060.0,
+      "total_withdrawals": 159114.8
+    },
+    {
+      "date": "2025-05-14",
+      "beginning_total": 615543.0,
+      "ending_total": 621922.4,
+      "gain_loss": 3333.2,
+      "purchases": {
+        "BRENT GAS": 96320.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 18450.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1640.0,
+        "Smallbulk": 26300.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 85423.8
+      },
+      "tanks_end": {
+        "Tank 1": 130562.3,
+        "Tank 2": 67692.4,
+        "Tank 3": 118699.3,
+        "Tank 4": 112643.0,
+        "Tank 5": 33043.9,
+        "Tank 6": 30428.4,
+        "Tank 7": 47101.5,
+        "Tank 8": 32670.0,
+        "Tank 9": 10779.5,
+        "Tank 10": 38302.3
+      },
+      "total_purchases": 114770.0,
+      "total_withdrawals": 113363.8
+    },
+    {
+      "date": "2025-05-15",
+      "beginning_total": 621922.4,
+      "ending_total": 641973.9,
+      "gain_loss": 18922.8,
+      "purchases": {
+        "BRENT GAS": 114260.0,
+        "LIQUIGAZ": 25270.0,
+        "SOLANE": 18900.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 12680.0,
+        "Smallbulk": 62010.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 95291.3
+      },
+      "tanks_end": {
+        "Tank 1": 67043.1,
+        "Tank 2": 126457.3,
+        "Tank 3": 118798.2,
+        "Tank 4": 112543.4,
+        "Tank 5": 33090.1,
+        "Tank 6": 30522.3,
+        "Tank 7": 47313.4,
+        "Tank 8": 39494.0,
+        "Tank 9": 26267.6,
+        "Tank 10": 40444.5
+      },
+      "total_purchases": 158430.0,
+      "total_withdrawals": 169981.3
+    },
+    {
+      "date": "2025-05-16",
+      "beginning_total": 641973.9,
+      "ending_total": 653933.1,
+      "gain_loss": 21019.2,
+      "purchases": {
+        "BRENT GAS": 115340.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 38110.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 8510.0,
+        "Smallbulk": 55930.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 106580.0
+      },
+      "tanks_end": {
+        "Tank 1": 127419.8,
+        "Tank 2": 76012.6,
+        "Tank 3": 118798.2,
+        "Tank 4": 112543.4,
+        "Tank 5": 33090.1,
+        "Tank 6": 30522.3,
+        "Tank 7": 47355.1,
+        "Tank 8": 29254.7,
+        "Tank 9": 44677.2,
+        "Tank 10": 34259.7
+      },
+      "total_purchases": 153450.0,
+      "total_withdrawals": 171020.0
+    },
+    {
+      "date": "2025-05-17",
+      "beginning_total": 653933.1,
+      "ending_total": 662391.1,
+      "gain_loss": -15686.9,
+      "purchases": {
+        "BRENT GAS": 127260.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 2740.0,
+        "Smallbulk": 33800.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 69315.1
+      },
+      "tanks_end": {
+        "Tank 1": 86624.7,
+        "Tank 2": 108028.6,
+        "Tank 3": 118798.2,
+        "Tank 4": 112570.9,
+        "Tank 5": 33112.2,
+        "Tank 6": 30533.5,
+        "Tank 7": 47356.1,
+        "Tank 8": 46595.6,
+        "Tank 9": 35504.5,
+        "Tank 10": 43266.7
+      },
+      "total_purchases": 127260.0,
+      "total_withdrawals": 105855.1
+    },
+    {
+      "date": "2025-05-18",
+      "beginning_total": 662391.1,
+      "ending_total": 629572.4,
+      "gain_loss": 18868.9,
+      "purchases": {
+        "BRENT GAS": 25880.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 17130.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 60437.6
+      },
+      "tanks_end": {
+        "Tank 1": 113771.9,
+        "Tank 2": 70238.7,
+        "Tank 3": 118798.2,
+        "Tank 4": 112543.4,
+        "Tank 5": 33112.2,
+        "Tank 6": 30593.5,
+        "Tank 7": 47360.3,
+        "Tank 8": 46595.6,
+        "Tank 9": 13291.8,
+        "Tank 10": 43266.7
+      },
+      "total_purchases": 25880.0,
+      "total_withdrawals": 77567.6
+    },
+    {
+      "date": "2025-05-19",
+      "beginning_total": 629572.4,
+      "ending_total": 634293.1,
+      "gain_loss": 4265.1,
+      "purchases": {
+        "BRENT GAS": 123100.0,
+        "LIQUIGAZ": 19190.0,
+        "SOLANE": 18940.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 7210.0,
+        "Smallbulk": 50870.0,
+        "Pick-up": 21030.0,
+        "Cylinder Production": 88874.4
+      },
+      "tanks_end": {
+        "Tank 1": 78864.8,
+        "Tank 2": 116030.5,
+        "Tank 3": 118923.6,
+        "Tank 4": 112670.4,
+        "Tank 5": 33112.2,
+        "Tank 6": 30580.5,
+        "Tank 7": 47360.3,
+        "Tank 8": 20462.2,
+        "Tank 9": 35866.8,
+        "Tank 10": 40422.0
+      },
+      "total_purchases": 161230.0,
+      "total_withdrawals": 167984.4
+    },
+    {
+      "date": "2025-05-20",
+      "beginning_total": 634293.1,
+      "ending_total": 632934.2,
+      "gain_loss": 16146.8,
+      "purchases": {
+        "BRENT GAS": 126380.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 0.0,
+        "PETRON": 24080.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 6310.0,
+        "Smallbulk": 53140.0,
+        "Pick-up": 21600.0,
+        "Cylinder Production": 93225.8
+      },
+      "tanks_end": {
+        "Tank 1": 124532.6,
+        "Tank 2": 63973.8,
+        "Tank 3": 119187.4,
+        "Tank 4": 113127.8,
+        "Tank 5": 33285.0,
+        "Tank 6": 30578.2,
+        "Tank 7": 47498.6,
+        "Tank 8": 38702.2,
+        "Tank 9": 14884.7,
+        "Tank 10": 47163.9
+      },
+      "total_purchases": 150460.0,
+      "total_withdrawals": 174275.8
+    },
+    {
+      "date": "2025-05-21",
+      "beginning_total": 632934.2,
+      "ending_total": 601121.4,
+      "gain_loss": -3098.0,
+      "purchases": {
+        "BRENT GAS": 115990.0,
+        "LIQUIGAZ": 0.0,
+        "SOLANE": 18120.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 5580.0,
+        "Smallbulk": 58750.0,
+        "Pick-up": 21460.0,
+        "Cylinder Production": 82614.8
+      },
+      "tanks_end": {
+        "Tank 1": 48641.7,
+        "Tank 2": 114160.0,
+        "Tank 3": 119187.4,
+        "Tank 4": 112941.6,
+        "Tank 5": 33120.1,
+        "Tank 6": 30526.0,
+        "Tank 7": 47732.5,
+        "Tank 8": 32955.0,
+        "Tank 9": 33765.6,
+        "Tank 10": 28091.6
+      },
+      "total_purchases": 134110.0,
+      "total_withdrawals": 168404.8
+    },
+    {
+      "date": "2025-05-22",
+      "beginning_total": 601121.4,
+      "ending_total": 643770.6,
+      "gain_loss": 6328.8,
+      "purchases": {
+        "BRENT GAS": 109270.0,
+        "LIQUIGAZ": 25570.0,
+        "SOLANE": 18960.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 9960.0,
+        "Smallbulk": 33970.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 83509.6
+      },
+      "tanks_end": {
+        "Tank 1": 126911.7,
+        "Tank 2": 68901.6,
+        "Tank 3": 119219.8,
+        "Tank 4": 113087.2,
+        "Tank 5": 33145.6,
+        "Tank 6": 30526.0,
+        "Tank 7": 47856.9,
+        "Tank 8": 32686.1,
+        "Tank 9": 33785.7,
+        "Tank 10": 37650.1
+      },
+      "total_purchases": 153800.0,
+      "total_withdrawals": 127439.6
+    },
+    {
+      "date": "2025-05-23",
+      "beginning_total": 643770.6,
+      "ending_total": 679657.0,
+      "gain_loss": 20483.6,
+      "purchases": {
+        "BRENT GAS": 132940.0,
+        "LIQUIGAZ": 25400.0,
+        "SOLANE": 18710.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 0.0,
+        "Smallbulk": 59590.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 102057.2
+      },
+      "tanks_end": {
+        "Tank 1": 105337.8,
+        "Tank 2": 116295.7,
+        "Tank 3": 119193.6,
+        "Tank 4": 112881.2,
+        "Tank 5": 33145.7,
+        "Tank 6": 30522.3,
+        "Tank 7": 47632.8,
+        "Tank 8": 41906.1,
+        "Tank 9": 33770.4,
+        "Tank 10": 38971.4
+      },
+      "total_purchases": 177050.0,
+      "total_withdrawals": 161647.2
+    },
+    {
+      "date": "2025-05-24",
+      "beginning_total": 679657.0,
+      "ending_total": 711491.5,
+      "gain_loss": -17891.1,
+      "purchases": {
+        "BRENT GAS": 72020.0,
+        "LIQUIGAZ": 75810.0,
+        "SOLANE": 18430.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 4660.0,
+        "Smallbulk": 45360.0,
+        "Pick-up": 0.0,
+        "Cylinder Production": 71174.4
+      },
+      "tanks_end": {
+        "Tank 1": 124975.0,
+        "Tank 2": 100110.3,
+        "Tank 3": 119713.8,
+        "Tank 4": 112848.0,
+        "Tank 5": 33378.0,
+        "Tank 6": 30583.4,
+        "Tank 7": 47856.9,
+        "Tank 8": 46193.3,
+        "Tank 9": 51220.7,
+        "Tank 10": 44612.1
+      },
+      "total_purchases": 166260.0,
+      "total_withdrawals": 121194.4
+    },
+    {
+      "date": "2025-05-25",
+      "beginning_total": 711491.5,
+      "ending_total": 758970.4,
+      "gain_loss": -5678.5,
+      "purchases": {
+        "BRENT GAS": 105200.0,
+        "LIQUIGAZ": 25060.0,
+        "SOLANE": 0.0,
+        "PETRON": 0.0
+      },
+      "withdrawals": {
+        "BACKLOAD": 1320.0,
+        "Smallbulk": 24510.0,
+        "Pick-up": 21220.0,
+        "Cylinder Production": 31372.7
+      },
+      "tanks_end": {
+        "Tank 1": 127298.3,
+        "Tank 2": 119065.1,
+        "Tank 3": 119687.9,
+        "Tank 4": 125233.5,
+        "Tank 5": 28667.8,
+        "Tank 6": 49083.3,
+        "Tank 7": 47856.9,
+        "Tank 8": 46210.0,
+        "Tank 9": 51255.6,
+        "Tank 10": 44612.1
+      },
+      "total_purchases": 130260.0,
+      "total_withdrawals": 78422.7
+    }
+  ],
+  "total_purchases_by_source": {
+    "BRENT GAS": 16118367.3,
+    "LIQUIGAZ": 2983586.3,
+    "SOLANE": 2153345.2,
+    "PETRON": 266499.8
+  },
+  "total_withdrawals_by_channel": {
+    "BACKLOAD": 1329132.8,
+    "Smallbulk": 7641526.2,
+    "Pick-up": 694124.9,
+    "Cylinder Production": 9859031.2
+  },
+  "kpis": {
+    "current_stock": 758970.4,
+    "stock_start_of_period": 550000.0,
+    "total_purchases_period": 21521798.6,
+    "total_withdrawals_period": 19523815.1,
+    "net_gain_loss_period": 4000.6,
+    "avg_daily_purchase": 148426.2,
+    "avg_daily_withdrawal": 134647.0,
+    "days_reported": 145,
+    "period_start": "2025-01-01",
+    "period_end": "2025-05-25"
+  },
+  "latest_tank_levels": {
+    "Tank 1": 127298.3,
+    "Tank 2": 119065.1,
+    "Tank 3": 119687.9,
+    "Tank 4": 125233.5,
+    "Tank 5": 28667.8,
+    "Tank 6": 49083.3,
+    "Tank 7": 47856.9,
+    "Tank 8": 46210.0,
+    "Tank 9": 51255.6,
+    "Tank 10": 44612.1
+  },
+  "month_max_by_tank": {
+    "Tank 1": 150000,
+    "Tank 2": 142633.3,
+    "Tank 3": 150000,
+    "Tank 4": 144186.0,
+    "Tank 5": 50000,
+    "Tank 6": 50000,
+    "Tank 7": 50000,
+    "Tank 8": 50000,
+    "Tank 9": 51255.6,
+    "Tank 10": 50000
+  },
+  "tank_capacity": {
+    "Tank 1": 150000,
+    "Tank 2": 150000,
+    "Tank 3": 150000,
+    "Tank 4": 150000,
+    "Tank 5": 50000,
+    "Tank 6": 50000,
+    "Tank 7": 50000,
+    "Tank 8": 50000,
+    "Tank 9": 50000,
+    "Tank 10": 50000
+  },
+  "total_yard_capacity": 900000
+};
+
+const COLORS = ['#34e29b','#22a5e0','#facc15','#f87171','#a78bfa','#fb923c','#38bdf8','#4ade80','#e879f9','#f472b6'];
+
+function fmt(n, decimals=0){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  const sign = n<0 ? '-' : '';
+  const abs = Math.abs(n);
+  if(abs>=1e6) return sign + (abs/1e6).toFixed(2)+'M';
+  if(abs>=1e3) return sign + (abs/1e3).toFixed(1)+'K';
+  return sign + abs.toFixed(decimals);
+}
+function fmtFull(n){
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  return n.toLocaleString(undefined,{maximumFractionDigits:1});
+}
+function fmtDate(d){
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-US',{month:'short', day:'2-digit'});
+}
+function fmtDateFull(d){
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'});
+}
+
+class Dashboard{
+  constructor(data, isReload){
+    if(!isReload) this.originalData = data;
+    this.loadData(data);
+    if(!isReload) this.init();
+    else this.initFilters();
+  }
+
+  loadData(data){
+    this.raw = data.records;
+    this.sources = Object.keys(data.total_purchases_by_source);
+    this.channels = Object.keys(data.total_withdrawals_by_channel);
+    this.tankNames = Object.keys(data.month_max_by_tank);
+    this.monthMaxByTank = data.month_max_by_tank;
+    this.tankCapacity = data.tank_capacity || {};
+    this.totalYardCapacity = data.total_yard_capacity || null;
+
+    this.activeSources = new Set(this.sources);
+    this.activeChannels = new Set(this.channels);
+    this.activeTanks = new Set(this.tankNames);
+
+    this.dateFrom = this.raw[0].date;
+    this.dateTo = this.raw[this.raw.length-1].date;
+
+    this.charts = this.charts || {};
+    this.sortKey = 'date';
+    this.sortDir = 1;
+  }
+
+  init(){
+    // one-time listeners (attached once; safe across data reloads)
+    document.getElementById('dateFrom').addEventListener('change', e=>{ this.dateFrom = e.target.value; this.render(); });
+    document.getElementById('dateTo').addEventListener('change', e=>{ this.dateTo = e.target.value; this.render(); });
+    document.getElementById('resetDates').addEventListener('click', ()=>{
+      this.dateFrom = this.raw[0].date; this.dateTo = this.raw[this.raw.length-1].date;
+      document.getElementById('dateFrom').value = this.dateFrom;
+      document.getElementById('dateTo').value = this.dateTo;
+      this.render();
+    });
+
+    document.querySelectorAll('#dataTable thead th').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.key;
+        if(this.sortKey===key) this.sortDir *= -1; else { this.sortKey=key; this.sortDir=1; }
+        this.renderTable();
+      });
+    });
+
+    document.getElementById('themeToggle').addEventListener('click', ()=>this.toggleTheme());
+
+    document.getElementById('fileUpload').addEventListener('change', e=>{
+      if(e.target.files && e.target.files[0]) this.handleFileUpload(e.target.files[0]);
+    });
+    document.getElementById('uploadTriggerBtn').addEventListener('click', ()=>{
+      requireAdminAuth('Admin password required to upload new report data.', ()=>{
+        document.getElementById('fileUpload').click();
+      });
+    });
+    document.getElementById('resetDataBtn').addEventListener('click', ()=>{
+      this.loadData(this.originalData);
+      this.initFilters();
+      this.setUploadStatus('Restored the originally uploaded report.', true);
+    });
+    document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+      requireAdminAuth('Admin password required to export data to Excel.', ()=>this.exportExcel());
+    });
+    document.getElementById('exportPdfBtn').addEventListener('click', ()=>{
+      requireAdminAuth('Admin password required to export data to PDF.', ()=>window.print());
+    });
+
+    this.initFilters();
+  }
+
+  initFilters(){
+    document.getElementById('subtitle-range').textContent =
+      `${fmtDateFull(this.raw[0].date)} – ${fmtDateFull(this.raw[this.raw.length-1].date)} · Daily Storage, Purchases & Withdrawals`;
+    document.getElementById('meta-month').textContent = `${new Date(this.raw[0].date+'T00:00:00').toLocaleDateString('en-US',{month:'short', year:'numeric'})} – ${new Date(this.raw[this.raw.length-1].date+'T00:00:00').toLocaleDateString('en-US',{month:'short', year:'numeric'})}`;
+    document.getElementById('meta-days').textContent = this.raw.length;
+    document.getElementById('meta-latest').textContent = fmtDate(this.raw[this.raw.length-1].date);
+
+    document.getElementById('dateFrom').value = this.dateFrom;
+    document.getElementById('dateFrom').min = this.raw[0].date;
+    document.getElementById('dateFrom').max = this.raw[this.raw.length-1].date;
+    document.getElementById('dateTo').value = this.dateTo;
+    document.getElementById('dateTo').min = this.raw[0].date;
+    document.getElementById('dateTo').max = this.raw[this.raw.length-1].date;
+
+    this.buildChips('tankChips', this.tankNames, this.activeTanks, ()=>this.render());
+    this.buildChips('sourceChips', this.sources, this.activeSources, ()=>this.render());
+    this.buildChips('channelChips', this.channels, this.activeChannels, ()=>this.render());
+
+    this.render();
+  }
+
+  toggleTheme(){
+    const isLight = document.body.classList.toggle('light-theme');
+    document.getElementById('themeLabel').textContent = isLight ? 'Warm Mode' : 'Dark Mode';
+    document.getElementById('themeToggle').firstChild.textContent = isLight ? '🔥 ' : '🌙 ';
+    this.render(); // re-render charts with theme-aware colors
+  }
+
+  setUploadStatus(msg, ok){
+    const el = document.getElementById('uploadStatus');
+    el.textContent = msg;
+    el.className = 'upload-status ' + (ok ? 'ok' : 'err');
+  }
+
+  // ---- Refresh data from an uploaded workbook (same column layout as source report) ----
+  handleFileUpload(file){
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try{
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const sheetName = wb.SheetNames.includes('STORAGE READING') ? 'STORAGE READING' : wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+        const parsed = this.parseReportRows(rows);
+        if(parsed.records.length === 0) throw new Error('No complete rows found (need Date + Beginning/Ending Stock columns filled in).');
+        parsed.tank_capacity = this.tankCapacity;
+        parsed.total_yard_capacity = this.totalYardCapacity;
+        this.loadData(parsed);
+        this.initFilters();
+        this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" (sheet: ${sheetName}). Checking cloud sync…`, true);
+        saveRecordsToCloud(parsed.records).then(result => {
+          if(result.ok){
+            this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" and saved to the cloud (${result.count} row${result.count===1?'':'s'}).`, true);
+          } else if(result.reason === 'not-signed-in'){
+            this.setUploadStatus(`Loaded ${parsed.records.length} day(s) from "${file.name}" locally only. Sign in under Cloud Sync above to also save this to Supabase.`, true);
+          } else {
+            this.setUploadStatus(`Loaded locally, but cloud save failed: ${result.reason}`, false);
+          }
+        });
+      }catch(err){
+        console.error(err);
+        this.setUploadStatus(`Could not read this file: ${err.message}. Expecting the same layout as the original report (Date in col A, Tanks 1–10, Purchases, Withdrawals, Ending Stock).`, false);
+      }
+    };
+    reader.onerror = () => this.setUploadStatus('Failed to read the file.', false);
+    reader.readAsArrayBuffer(file);
+  }
+
+  // Parses rows using the fixed column layout of the original PRODUCTION_REPORT template:
+  // 0:Date 1-10:Tank1-10(begin) 11:F-STOCKS 12:Total(begin) 13-16:Purchases 17-20:Withdrawals
+  // 21:(blank) 22-31:Tank1-10(end) 32:F-STOCKS(end) 33:Total(end) 34:Storage Gain(Loss)
+  parseReportRows(rows){
+    const purchaseCols = ['BRENT GAS','LIQUIGAZ','SOLANE','PETRON'];
+    const withdrawalCols = ['BACKLOAD','Smallbulk','Pick-up','Cylinder Production'];
+    const records = [];
+    for(let i=2;i<rows.length;i++){
+      const r = rows[i];
+      if(!r || r.length < 34) continue;
+      const rawDate = r[0];
+      const endingTotal = r[33];
+      if(rawDate==null || endingTotal==null || isNaN(Number(endingTotal))) continue;
+      let dateStr;
+      if(typeof rawDate === 'number'){
+        const d = XLSX.SSF.parse_date_code(rawDate);
+        dateStr = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      } else {
+        const d = new Date(rawDate);
+        if(isNaN(d)) continue;
+        dateStr = d.toISOString().slice(0,10);
+      }
+      const purchases = {}; purchaseCols.forEach((c,idx)=> purchases[c] = Number(r[13+idx])||0);
+      const withdrawals = {}; withdrawalCols.forEach((c,idx)=> withdrawals[c] = Number(r[17+idx])||0);
+      const tanksEnd = {};
+      for(let t=1;t<=10;t++) tanksEnd['Tank '+t] = r[21+t]!=null ? Number(r[21+t]) : null;
+      records.push({
+        date: dateStr,
+        beginning_total: Number(r[12])||null,
+        ending_total: Number(endingTotal),
+        gain_loss: r[34]!=null ? Number(r[34]) : null,
+        purchases, withdrawals, tanks_end: tanksEnd,
+        total_purchases: purchaseCols.reduce((s,c)=>s+purchases[c],0),
+        total_withdrawals: withdrawalCols.reduce((s,c)=>s+withdrawals[c],0),
+      });
+    }
+    records.sort((a,b)=> a.date < b.date ? -1 : 1);
+    const total_purchases_by_source = {}; purchaseCols.forEach(c=> total_purchases_by_source[c] = records.reduce((s,r)=>s+r.purchases[c],0));
+    const total_withdrawals_by_channel = {}; withdrawalCols.forEach(c=> total_withdrawals_by_channel[c] = records.reduce((s,r)=>s+r.withdrawals[c],0));
+    const month_max_by_tank = {};
+    for(let t=1;t<=10;t++){ const key='Tank '+t; month_max_by_tank[key] = Math.max(...records.map(r=>r.tanks_end[key]||0)); }
+    return { records, total_purchases_by_source, total_withdrawals_by_channel, month_max_by_tank };
+  }
+
+  exportExcel(){
+    const rows = this.filtered;
+    const REAL_DATA_CUTOFF = '2025-05-01'; // rows before this were generated/illustrative, not from the uploaded workbook
+
+    // ---------- Sheet 1: "STORAGE READING" — exact column layout of the original template ----------
+    // This is the same 36-column positional layout parseReportRows() reads, so editing values
+    // here and re-uploading through "Upload New Report" works without any reformatting.
+    const groupHeader = [
+      '', 'Beginning Stock (Actual)', '', '', '', '', '', '', '', '', '', '', '',
+      'Purchases', '', '', '',
+      'Withdrawals', '', '', '',
+      '',
+      'Ending Stock (Actual)', '', '', '', '', '', '', '', '', '', '', '',
+      '', 'REMARKS'
+    ];
+    const colHeader = [
+      'Date',
+      'Tank 1','Tank 2','Tank 3','Tank 4','Tank 5','Tank 6','Tank 7','Tank 8','Tank 9','Tank 10',
+      'F-STOCKS','Total',
+      'BRENT GAS','LIQUIGAZ','SOLANE','PETRON',
+      'BACKLOAD','Smallbulk','Pick-up','Cylinder Production',
+      'Ending Stock',
+      'Tank 1','Tank 2','Tank 3','Tank 4','Tank 5','Tank 6','Tank 7','Tank 8','Tank 9','Tank 10',
+      'F-STOCKS','Total',
+      'Storage Gain (Loss)', 'Remarks'
+    ];
+
+    const aoa = [groupHeader, colHeader];
+    rows.forEach((r, idx) => {
+      const prevEndTanks = idx > 0 ? rows[idx-1].tanks_end : null; // beginning tank levels = previous day's ending
+      const line = new Array(36).fill('');
+      line[0] = r.date;
+      this.tankNames.forEach((t,i) => { line[1+i] = prevEndTanks ? (prevEndTanks[t] ?? '') : ''; });
+      line[11] = ''; // F-STOCKS (beginning) — not tracked in source data
+      line[12] = r.beginning_total;
+      ['BRENT GAS','LIQUIGAZ','SOLANE','PETRON'].forEach((c,i) => { line[13+i] = r.purchases[c] ?? 0; });
+      ['BACKLOAD','Smallbulk','Pick-up','Cylinder Production'].forEach((c,i) => { line[17+i] = r.withdrawals[c] ?? 0; });
+      line[21] = '';
+      this.tankNames.forEach((t,i) => { line[22+i] = r.tanks_end[t] ?? ''; });
+      line[32] = ''; // F-STOCKS (ending) — not tracked in source data
+      line[33] = r.ending_total;
+      line[34] = r.gain_loss;
+      line[35] = r.date < REAL_DATA_CUTOFF ? 'Illustrative/generated data' : '';
+      aoa.push(line);
+    });
+    const wsMain = XLSX.utils.aoa_to_sheet(aoa);
+    wsMain['!cols'] = new Array(36).fill({ wch: 13 });
+
+    // ---------- Sheet 2: "Purchases by Source" ----------
+    const purchaseRows = [['Date', ...this.sources, 'Total Purchases']];
+    rows.forEach(r => purchaseRows.push([r.date, ...this.sources.map(s=>r.purchases[s]??0), r.total_purchases]));
+    purchaseRows.push(['TOTAL', ...this.sources.map(s=> rows.reduce((sum,r)=>sum+(r.purchases[s]||0),0)), rows.reduce((s,r)=>s+r.total_purchases,0)]);
+    const wsPurchases = XLSX.utils.aoa_to_sheet(purchaseRows);
+
+    // ---------- Sheet 3: "Withdrawals by Channel" ----------
+    const withdrawalRows = [['Date', ...this.channels, 'Total Withdrawals']];
+    rows.forEach(r => withdrawalRows.push([r.date, ...this.channels.map(c=>r.withdrawals[c]??0), r.total_withdrawals]));
+    withdrawalRows.push(['TOTAL', ...this.channels.map(c=> rows.reduce((sum,r)=>sum+(r.withdrawals[c]||0),0)), rows.reduce((s,r)=>s+r.total_withdrawals,0)]);
+    const wsWithdrawals = XLSX.utils.aoa_to_sheet(withdrawalRows);
+
+    // ---------- Sheet 4: "Tank Levels by Day" (ending stock per tank, per day) ----------
+    const tankRows = [['Date', ...this.tankNames, 'Ending Total']];
+    rows.forEach(r => tankRows.push([r.date, ...this.tankNames.map(t=>r.tanks_end[t]??''), r.ending_total]));
+    const wsTanks = XLSX.utils.aoa_to_sheet(tankRows);
+
+    // ---------- Sheet 5: "Category Summary" ----------
+    const last = rows[rows.length-1];
+    const summary = [
+      ['LPG Storage & Production — Category Summary'],
+      ['Period', `${this.dateFrom} to ${this.dateTo}`],
+      [],
+      ['STOCK'],
+      ['Current Total Stock (latest day)', last.ending_total],
+    ];
+    if (this.totalYardCapacity) {
+      summary.push(['Total Yard Capacity', this.totalYardCapacity]);
+      summary.push(['Total Yard Ullage (remaining capacity)', this.totalYardCapacity - last.ending_total]);
+      summary.push(['% Full', ((last.ending_total/this.totalYardCapacity)*100).toFixed(1) + '%']);
+    }
+    summary.push([]);
+    summary.push(['TANK LEVELS (latest day, with rated capacity)']);
+    summary.push(['Tank', 'Current Level', 'Capacity', '% Full']);
+    this.tankNames.forEach(t => {
+      const val = last.tanks_end[t] || 0;
+      const cap = this.tankCapacity[t] || '';
+      summary.push([t, val, cap, cap ? ((val/cap)*100).toFixed(1)+'%' : '']);
+    });
+    summary.push([]);
+    summary.push(['PURCHASES BY SOURCE (period total)']);
+    summary.push(['Source', 'Total', '% of Purchases']);
+    const totalPurch = rows.reduce((s,r)=>s+r.total_purchases,0);
+    this.sources.forEach(s => {
+      const total = rows.reduce((sum,r)=>sum+(r.purchases[s]||0),0);
+      summary.push([s, total, totalPurch ? ((total/totalPurch)*100).toFixed(1)+'%' : '0%']);
+    });
+    summary.push([]);
+    summary.push(['WITHDRAWALS BY CHANNEL (period total)']);
+    summary.push(['Channel', 'Total', '% of Withdrawals']);
+    const totalWithd = rows.reduce((s,r)=>s+r.total_withdrawals,0);
+    this.channels.forEach(c => {
+      const total = rows.reduce((sum,r)=>sum+(r.withdrawals[c]||0),0);
+      summary.push([c, total, totalWithd ? ((total/totalWithd)*100).toFixed(1)+'%' : '0%']);
+    });
+    summary.push([]);
+    summary.push(['STORAGE GAIN / LOSS']);
+    const netGL = rows.reduce((s,r)=>s+(r.gain_loss||0),0);
+    summary.push(['Net Gain / (Loss) over period', netGL]);
+    summary.push(['Average daily variance', (netGL/rows.length).toFixed(1)]);
+    const wsSummary = XLSX.utils.aoa_to_sheet(summary);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsMain, 'STORAGE READING');
+    XLSX.utils.book_append_sheet(wb, wsPurchases, 'Purchases by Source');
+    XLSX.utils.book_append_sheet(wb, wsWithdrawals, 'Withdrawals by Channel');
+    XLSX.utils.book_append_sheet(wb, wsTanks, 'Tank Levels by Day');
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Category Summary');
+    XLSX.writeFile(wb, `LPG_Dashboard_Export_${this.dateFrom}_to_${this.dateTo}.xlsx`);
+  }
+
+  // Simple linear-trend projection over the next N days (not a statistical forecast model)
+  computeForecast(rows, days=7){
+    const n = rows.length;
+    if(n < 3) return [];
+    const ys = rows.map(r=>r.ending_total).filter(v=>v!=null);
+    const xs = ys.map((_,i)=>i);
+    const meanX = xs.reduce((a,b)=>a+b,0)/xs.length;
+    const meanY = ys.reduce((a,b)=>a+b,0)/ys.length;
+    let num=0, den=0;
+    xs.forEach((x,i)=>{ num += (x-meanX)*(ys[i]-meanY); den += (x-meanX)**2; });
+    const slope = den===0 ? 0 : num/den;
+    const intercept = meanY - slope*meanX;
+    const lastDate = new Date(rows[n-1].date+'T00:00:00');
+    const out = [];
+    for(let d=1; d<=days; d++){
+      const dt = new Date(lastDate); dt.setDate(dt.getDate()+d);
+      out.push({ date: dt.toISOString().slice(0,10), value: intercept + slope*(n-1+d) });
+    }
+    return out;
+  }
+
+  buildChips(containerId, items, activeSet, onChange){
+    const c = document.getElementById(containerId);
+    c.innerHTML='';
+    items.forEach(item=>{
+      const chip = document.createElement('div');
+      chip.className = 'chip active';
+      chip.textContent = item;
+      chip.addEventListener('click', ()=>{
+        if(activeSet.has(item)){
+          if(activeSet.size>1){ activeSet.delete(item); chip.classList.remove('active'); }
+        } else {
+          activeSet.add(item); chip.classList.add('active');
+        }
+        onChange();
+      });
+      c.appendChild(chip);
+    });
+  }
+
+  get filtered(){
+    return this.raw.filter(r => r.date >= this.dateFrom && r.date <= this.dateTo);
+  }
+
+  render(){
+    const rows = this.filtered;
+    if(rows.length===0) return;
+    this.renderKPIs(rows);
+    this.renderTrendChart(rows);
+    this.renderTankList(rows[rows.length-1]);
+    this.renderGainLossChart(rows);
+    this.renderPurchaseDonut(rows);
+    this.renderWithdrawalBar(rows);
+    this.renderTable(rows);
+  }
+
+  themeColors(){
+    const light = document.body.classList.contains('light-theme');
+    return light
+      ? { tick:'#7a5a3a', grid:'rgba(160,100,40,0.1)', legend:'#7a5a3a', tooltipBg:'#fffaf2', tooltipText:'#402c17', tooltipBorder:'rgba(180,110,40,0.3)', cardBg:'#fffaf2' }
+      : { tick:'#5c7a6d', grid:'rgba(255,255,255,0.04)', legend:'#8fb5a4', tooltipBg:'#0d1a15', tooltipText:'#eafff2', tooltipBorder:'rgba(56,224,150,0.3)', cardBg:'#101f19' };
+  }
+
+  renderKPIs(rows){
+    const last = rows[rows.length-1];
+    const totalPurchases = rows.reduce((s,r)=> s + [...this.activeSources].reduce((ss,src)=>ss+(r.purchases[src]||0),0), 0);
+    const totalWithdrawals = rows.reduce((s,r)=> s + [...this.activeChannels].reduce((ss,ch)=>ss+(r.withdrawals[ch]||0),0), 0);
+    const netGL = rows.reduce((s,r)=> s + (r.gain_loss||0), 0);
+
+    document.getElementById('kpi-current').textContent = fmt(last.ending_total);
+    document.getElementById('kpi-current-sub').textContent = `as of ${fmtDate(last.date)}`;
+
+    if(this.totalYardCapacity){
+      const ullage = this.totalYardCapacity - last.ending_total;
+      const pctFull = (last.ending_total/this.totalYardCapacity*100).toFixed(1);
+      document.getElementById('kpi-ullage').textContent = fmt(ullage);
+      document.getElementById('kpi-ullage-sub').textContent = `${pctFull}% of ${fmt(this.totalYardCapacity)} rated capacity`;
+    } else {
+      document.getElementById('kpi-ullage').textContent = '—';
+      document.getElementById('kpi-ullage-sub').textContent = 'capacity not available';
+    }
+
+    document.getElementById('kpi-purchases').textContent = fmt(totalPurchases);
+    document.getElementById('kpi-purchases-sub').textContent = `avg ${fmt(totalPurchases/rows.length)} / day`;
+
+    document.getElementById('kpi-withdrawals').textContent = fmt(totalWithdrawals);
+    document.getElementById('kpi-withdrawals-sub').textContent = `avg ${fmt(totalWithdrawals/rows.length)} / day`;
+
+    const glEl = document.getElementById('kpi-netgl');
+    const glSub = document.getElementById('kpi-netgl-sub');
+    glEl.textContent = (netGL>=0?'+':'') + fmt(netGL);
+    glEl.style.color = netGL>=0 ? 'var(--positive)' : 'var(--negative)';
+    glSub.textContent = netGL>=0 ? '▲ net gain over period' : '▼ net loss over period';
+    glSub.className = 'kpi-sub ' + (netGL>=0?'positive':'negative');
+  }
+
+  renderTankList(lastRow){
+    const list = document.getElementById('tankList');
+    list.innerHTML='';
+    this.tankNames.forEach((t,i)=>{
+      if(!this.activeTanks.has(t)) return;
+      const val = lastRow.tanks_end[t] || 0;
+      const capacity = this.tankCapacity[t] || this.monthMaxByTank[t] || val || 1;
+      const pct = Math.min(100, (val/capacity)*100);
+      const row = document.createElement('div');
+      row.className = 'tank-row' + (pct<20 ? ' low':'');
+      row.innerHTML = `
+        <div class="tname">${t.replace('Tank ','T')}</div>
+        <div class="tank-bar-track"><div class="tank-bar-fill" style="width:${pct}%"></div></div>
+        <div class="tval">${fmtFull(val)} <span style="color:var(--text-faint)">(${pct.toFixed(0)}%)</span></div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  renderTrendChart(rows){
+    const ctx = document.getElementById('stockTrendChart').getContext('2d');
+    const tc = this.themeColors();
+    const labels = rows.map(r=>fmtDate(r.date));
+    const forecast = this.computeForecast(rows, 7);
+    const forecastLabels = forecast.map(f=>fmtDate(f.date));
+    const allLabels = [...labels, ...forecastLabels];
+    const pad = new Array(labels.length-1).fill(null);
+    const forecastData = [rows[rows.length-1].ending_total, ...forecast.map(f=>Math.round(f.value*10)/10)];
+
+    const GAIN_COLOR = '#86efac'; // light, soft green for gains
+    const LOSS_COLOR = '#f2a49f'; // muted, non-bold red for losses
+    const isGain = i => rows[i] && (rows[i].gain_loss ?? 0) >= 0;
+    const pointColor = i => isGain(i) ? GAIN_COLOR : LOSS_COLOR;
+
+    if(this.charts.trend) this.charts.trend.destroy();
+    this.charts.trend = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels: allLabels,
+        datasets:[
+          { label:'Beginning Stock', data: rows.map(r=>r.beginning_total), borderColor:'#22a5e0', backgroundColor:'rgba(34,165,224,0.06)', borderWidth:2, tension:0.15, pointRadius:2, fill:false },
+          {
+            label:'Ending Stock (green = gain, red = loss)',
+            data: rows.map(r=>r.ending_total),
+            borderWidth:3.5,
+            tension:0.12,
+            pointRadius:4,
+            pointHoverRadius:6,
+            pointBorderWidth:1.5,
+            fill:false,
+            borderColor: GAIN_COLOR, // fallback color; per-segment color set below
+            pointBackgroundColor: rows.map((_,i)=>pointColor(i)),
+            pointBorderColor: tc.cardBg,
+            segment:{
+              borderColor: c => pointColor(c.p0DataIndex + 1), // color each segment by the day it's arriving at
+            },
+          },
+          { label:'Projected (7-day trend)', data: [...pad, ...forecastData], borderColor:'#facc15', borderDash:[6,4], borderWidth:2, tension:0.2, pointRadius:2, fill:false },
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:true,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ labels:{ color: tc.legend, font:{size:11}, boxWidth:12, usePointStyle:true } },
+          tooltip:{
+            backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText,
+            callbacks:{
+              afterBody: items => {
+                const idx = items[0]?.dataIndex;
+                const r = rows[idx];
+                if(!r || r.gain_loss==null) return '';
+                const sign = r.gain_loss>=0 ? '+' : '';
+                const label = r.gain_loss>=0 ? 'Gain' : 'Loss';
+                return `${label}: ${sign}${fmtFull(r.gain_loss)}`;
+              }
+            }
+          }
+        },
+        scales:{
+          x:{ ticks:{ color:tc.tick, font:{size:10} }, grid:{ color:tc.grid } },
+          y:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, grid:{ color:tc.grid } }
+        }
+      }
+    });
+  }
+
+  renderGainLossChart(rows){
+    const ctx = document.getElementById('gainLossChart').getContext('2d');
+    const tc = this.themeColors();
+    const labels = rows.map(r=>fmtDate(r.date));
+    const vals = rows.map(r=>r.gain_loss);
+    if(this.charts.gl) this.charts.gl.destroy();
+    this.charts.gl = new Chart(ctx, {
+      type:'bar',
+      data:{ labels, datasets:[{
+        label:'Gain / (Loss)', data: vals,
+        backgroundColor: vals.map(v=> v>=0 ? 'rgba(74,222,128,0.75)' : 'rgba(248,113,113,0.75)'),
+        borderRadius:3, maxBarThickness:14
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText } },
+        scales:{
+          x:{ ticks:{ color:tc.tick, font:{size:9}, maxRotation:90, minRotation:90 }, grid:{ display:false } },
+          y:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, grid:{ color:tc.grid } }
+        }
+      }
+    });
+  }
+
+  renderPurchaseDonut(rows){
+    const ctx = document.getElementById('purchaseDonut').getContext('2d');
+    const tc = this.themeColors();
+    const sources = [...this.activeSources];
+    const totals = sources.map(s => rows.reduce((sum,r)=>sum+(r.purchases[s]||0),0));
+    if(this.charts.donut) this.charts.donut.destroy();
+    this.charts.donut = new Chart(ctx, {
+      type:'doughnut',
+      data:{ labels: sources, datasets:[{ data: totals, backgroundColor: sources.map((_,i)=>COLORS[i%COLORS.length]), borderColor:tc.cardBg, borderWidth:3 }]},
+      options:{
+        responsive:true, maintainAspectRatio:true, cutout:'62%',
+        plugins:{ legend:{ position:'bottom', labels:{ color:tc.legend, font:{size:11}, boxWidth:10, padding:10 } },
+          tooltip:{ backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText,
+            callbacks:{ label: ctx => `${ctx.label}: ${fmtFull(ctx.raw)} (${(ctx.raw/totals.reduce((a,b)=>a+b,0)*100).toFixed(1)}%)` } } }
+      }
+    });
+  }
+
+  renderWithdrawalBar(rows){
+    const ctx = document.getElementById('withdrawalBar').getContext('2d');
+    const tc = this.themeColors();
+    const channels = [...this.activeChannels];
+    const totals = channels.map(c => rows.reduce((sum,r)=>sum+(r.withdrawals[c]||0),0));
+    if(this.charts.wbar) this.charts.wbar.destroy();
+    this.charts.wbar = new Chart(ctx, {
+      type:'bar',
+      data:{ labels: channels, datasets:[{ data: totals, backgroundColor: channels.map((_,i)=>COLORS[(i+4)%COLORS.length]), borderRadius:6, maxBarThickness:34 }]},
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:true,
+        plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText,
+          callbacks:{ label: ctx => fmtFull(ctx.raw) } } },
+        scales:{
+          x:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, grid:{ color:tc.grid } },
+          y:{ ticks:{ color:tc.legend, font:{size:11} }, grid:{ display:false } }
+        }
+      }
+    });
+  }
+
+  renderTable(rowsIn){
+    const rows = (rowsIn || this.filtered).slice();
+    rows.sort((a,b)=>{
+      let av=a[this.sortKey], bv=b[this.sortKey];
+      if(this.sortKey==='date'){ av = a.date; bv = b.date; }
+      if(av<bv) return -1*this.sortDir;
+      if(av>bv) return 1*this.sortDir;
+      return 0;
+    });
+    document.getElementById('table-count').textContent = `${rows.length} rows`;
+    const body = document.getElementById('dataTableBody');
+    body.innerHTML = rows.map(r=>{
+      const glClass = r.gain_loss>=0 ? 'gl-pos' : 'gl-neg';
+      const glSign = r.gain_loss>=0 ? '+' : '';
+      return `<tr>
+        <td>${fmtDate(r.date)}</td>
+        <td>${fmtFull(r.beginning_total)}</td>
+        <td>${fmtFull(r.total_purchases)}</td>
+        <td>${fmtFull(r.total_withdrawals)}</td>
+        <td>${fmtFull(r.ending_total)}</td>
+        <td class="${glClass}">${glSign}${fmtFull(r.gain_loss)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN AUTH MODAL — gates "Upload New Report" and both Export buttons.
+// NOTE: this is a client-side deterrent only. Since the credentials below
+// live in this HTML file's visible source, anyone with browser dev tools
+// can read or bypass them — it is not real access control. It's suitable
+// for keeping casual users from accidentally uploading/exporting, not for
+// protecting sensitive data from a determined person.
+// ---------------------------------------------------------------------------
+const ADMIN_CREDENTIALS = { username: 'Jesdev21', password: 'J3sD@ta' };
+let pendingAuthAction = null;
+
+function requireAdminAuth(contextMessage, onSuccess){
+  pendingAuthAction = onSuccess;
+  document.getElementById('authModalContext').textContent = contextMessage;
+  document.getElementById('authUsername').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authError').textContent = '';
+  document.getElementById('authModalOverlay').classList.add('show');
+  document.getElementById('authUsername').focus();
+}
+
+function closeAuthModal(){
+  document.getElementById('authModalOverlay').classList.remove('show');
+  pendingAuthAction = null;
+}
+
+function submitAuthModal(){
+  const u = document.getElementById('authUsername').value.trim();
+  const p = document.getElementById('authPassword').value;
+  if(u === ADMIN_CREDENTIALS.username && p === ADMIN_CREDENTIALS.password){
+    const action = pendingAuthAction;
+    closeAuthModal();
+    if(action) action();
+  } else {
+    document.getElementById('authError').textContent = 'Incorrect username or password.';
+  }
+}
+
+document.getElementById('authSubmitBtn').addEventListener('click', submitAuthModal);
+document.getElementById('authCancelBtn').addEventListener('click', closeAuthModal);
+document.getElementById('authModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'authModalOverlay') closeAuthModal();
+});
+document.getElementById('authPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') submitAuthModal(); });
+document.getElementById('authUsername').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPassword').focus(); });
+
+const dashboard = new Dashboard(DATA);
+
+// ---------------------------------------------------------------------------
+// CLOUD SYNC (Supabase) — entirely optional. The dashboard above already
+// works fully offline on the embedded DATA. Signing in switches the same
+// dashboard instance over to live cloud data and turns on two-way sync:
+// uploads get pushed to the cloud, and cloud changes push back down via
+// real-time subscription. Nothing here blocks the dashboard if skipped.
+// ---------------------------------------------------------------------------
+const SUPABASE_URL = 'https://rmxytydlrdrxnzskywbz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJteHl0eWRscmRyeG56c2t5d2J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzI5NDAsImV4cCI6MjEwMTEwODk0MH0.GucUMiAsLI7KGMndReUxfLlgHrREaGAuArRbkEo-QjE';
+
+let supabaseClient = null;
+let realtimeChannel = null;
+
+function setCloudStatus(msg, ok){
+  const el = document.getElementById('cloudStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = 'upload-status ' + (ok ? 'ok' : 'err');
+}
+
+function updateCloudUI(isSignedIn, email){
+  document.getElementById('cloudEmail').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudPassword').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudSignInBtn').style.display = isSignedIn ? 'none' : '';
+  document.getElementById('cloudSignOutBtn').style.display = isSignedIn ? '' : 'none';
+  const label = document.getElementById('cloudUserLabel');
+  label.style.display = isSignedIn ? '' : 'none';
+  label.textContent = isSignedIn ? `☁ Connected as ${email}` : '';
+}
+
+function getSupabaseClient(){
+  if(supabaseClient) return supabaseClient;
+  if(typeof window.supabase === 'undefined'){
+    setCloudStatus('Supabase library failed to load (check your internet connection).', false);
+    return null;
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return supabaseClient;
+}
+
+// Rebuilds the same aggregate shape the Dashboard class expects, from a flat
+// list of daily records (used both for cloud data and any future re-import).
+function buildAggregatesFromRecords(records){
+  const purchaseCols = ['BRENT GAS','LIQUIGAZ','SOLANE','PETRON'];
+  const withdrawalCols = ['BACKLOAD','Smallbulk','Pick-up','Cylinder Production'];
+  records = records.slice().sort((a,b)=> a.date < b.date ? -1 : 1);
+  const total_purchases_by_source = {};
+  purchaseCols.forEach(c => total_purchases_by_source[c] = records.reduce((s,r)=>s+(r.purchases[c]||0),0));
+  const total_withdrawals_by_channel = {};
+  withdrawalCols.forEach(c => total_withdrawals_by_channel[c] = records.reduce((s,r)=>s+(r.withdrawals[c]||0),0));
+  const month_max_by_tank = {};
+  for(let t=1;t<=10;t++){
+    const key = 'Tank '+t;
+    month_max_by_tank[key] = Math.max(0, ...records.map(r=>r.tanks_end[key]||0));
+  }
+  return {
+    records, total_purchases_by_source, total_withdrawals_by_channel, month_max_by_tank,
+    tank_capacity: DATA.tank_capacity, total_yard_capacity: DATA.total_yard_capacity,
+  };
+}
+
+async function syncFromCloud(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  setCloudStatus('Syncing…', true);
+  const { data, error } = await client
+    .from('daily_reports')
+    .select('*')
+    .order('report_date', { ascending: true });
+
+  if(error){ setCloudStatus('Sync failed: ' + error.message, false); return; }
+  if(!data || data.length === 0){ setCloudStatus('Connected — no cloud reports found yet. Upload a report to populate it.', true); return; }
+
+  const records = data.map(r => ({
+    date: r.report_date,
+    beginning_total: r.beginning_total,
+    ending_total: r.ending_total,
+    gain_loss: r.gain_loss,
+    purchases: r.purchases || {},
+    withdrawals: r.withdrawals || {},
+    tanks_end: r.tanks_end || {},
+    total_purchases: Object.values(r.purchases || {}).reduce((a,b)=>a+b, 0),
+    total_withdrawals: Object.values(r.withdrawals || {}).reduce((a,b)=>a+b, 0),
+  }));
+
+  dashboard.loadData(buildAggregatesFromRecords(records));
+  dashboard.initFilters();
+  setCloudStatus(`Synced ${records.length} day(s) from the cloud. Live updates are on.`, true);
+}
+
+// Pushes freshly-parsed upload records into Supabase. Returns a small result
+// object instead of throwing, so the upload flow can decide what to tell the
+// user (not signed in vs. a real save failure are different messages).
+async function saveRecordsToCloud(records){
+  const client = getSupabaseClient();
+  if(!client) return { ok:false, reason:'Supabase not available' };
+  const { data: sessionData } = await client.auth.getSession();
+  if(!sessionData || !sessionData.session) return { ok:false, reason:'not-signed-in' };
+
+  const user = sessionData.session.user;
+  const rows = records.map(r => ({
+    report_date: r.date,
+    beginning_total: r.beginning_total,
+    ending_total: r.ending_total,
+    gain_loss: r.gain_loss,
+    purchases: r.purchases,
+    withdrawals: r.withdrawals,
+    tanks_end: r.tanks_end,
+    uploaded_by: user.id,
+  }));
+
+  const { error } = await client.from('daily_reports').upsert(rows, { onConflict: 'report_date' });
+  if(error) return { ok:false, reason: error.message };
+  return { ok:true, count: rows.length };
+}
+
+function subscribeRealtime(){
+  const client = getSupabaseClient();
+  if(!client || realtimeChannel) return;
+  realtimeChannel = client
+    .channel('daily_reports_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_reports' }, () => syncFromCloud())
+    .subscribe();
+}
+
+async function signInAndSync(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  const email = document.getElementById('cloudEmail').value.trim();
+  const password = document.getElementById('cloudPassword').value;
+  if(!email || !password){ setCloudStatus('Enter both email and password.', false); return; }
+
+  setCloudStatus('Signing in…', true);
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  if(error){ setCloudStatus('Login failed: ' + error.message, false); return; }
+
+  updateCloudUI(true, email);
+  await syncFromCloud();
+  subscribeRealtime();
+}
+
+async function signOutCloud(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  await client.auth.signOut();
+  if(realtimeChannel){ client.removeChannel(realtimeChannel); realtimeChannel = null; }
+  updateCloudUI(false, '');
+  setCloudStatus('Signed out. Uploads will stay local-only until you sign in again.', true);
+}
+
+// On page load, silently pick up an existing Supabase session (if the browser
+// already has one) so people don't have to log in again on every visit.
+async function initCloudSession(){
+  const client = getSupabaseClient();
+  if(!client) return;
+  const { data } = await client.auth.getSession();
+  if(data && data.session){
+    updateCloudUI(true, data.session.user.email);
+    setCloudStatus('Restored your previous session. Syncing…', true);
+    await syncFromCloud();
+    subscribeRealtime();
+  }
+}
+
+document.getElementById('cloudSignInBtn').addEventListener('click', () => {
+  signInAndSync().catch(err => setCloudStatus('Unexpected error: ' + err.message, false));
+});
+document.getElementById('cloudSignOutBtn').addEventListener('click', () => {
+  signOutCloud().catch(err => setCloudStatus('Unexpected error: ' + err.message, false));
+});
+initCloudSession();
+</script>
+</body>
+</html>
