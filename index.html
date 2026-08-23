@@ -1856,6 +1856,69 @@ let currentAuth = { user:null, role:null, fullName:null, department:null, access
 let toastTimer = null;
 let passwordChangeFromDashboard = false;
 let demoResetTimer = null;
+let sessionIdleTimer = null;
+let sessionIdleSignOutInProgress = false;
+let pendingSignOutMessage = '';
+const SESSION_IDLE_ACTIVITY_KEY = 'lpg-dashboard:last-activity-at';
+const STAFF_IDLE_LIMIT_MS = 30 * 60 * 1000;
+const VIEWER_IDLE_LIMIT_MS = 15 * 60 * 1000;
+
+function getSessionIdleLimit(){
+  if(!currentAuth.user) return 0;
+  return currentAuth.role === 'viewer' ? VIEWER_IDLE_LIMIT_MS : STAFF_IDLE_LIMIT_MS;
+}
+
+function clearSessionIdleMonitor(removeActivity=true){
+  clearTimeout(sessionIdleTimer);
+  sessionIdleTimer = null;
+  if(removeActivity) window.sessionStorage.removeItem(SESSION_IDLE_ACTIVITY_KEY);
+}
+
+function getLastSessionActivity(){
+  const value = Number(window.sessionStorage.getItem(SESSION_IDLE_ACTIVITY_KEY));
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function scheduleSessionIdleCheck(){
+  clearTimeout(sessionIdleTimer);
+  const limit = getSessionIdleLimit();
+  if(!limit) return;
+  const lastActivity = getLastSessionActivity() || Date.now();
+  if(!getLastSessionActivity()) window.sessionStorage.setItem(SESSION_IDLE_ACTIVITY_KEY, String(lastActivity));
+  const remaining = limit - (Date.now() - lastActivity);
+  sessionIdleTimer = setTimeout(checkSessionIdleTimeout, Math.max(250, remaining));
+}
+
+function markSessionActivity(){
+  if(!currentAuth.user || sessionIdleSignOutInProgress) return;
+  window.sessionStorage.setItem(SESSION_IDLE_ACTIVITY_KEY, String(Date.now()));
+  scheduleSessionIdleCheck();
+}
+
+async function checkSessionIdleTimeout(){
+  const limit = getSessionIdleLimit();
+  if(!limit || sessionIdleSignOutInProgress) return;
+  const lastActivity = getLastSessionActivity();
+  if(lastActivity && Date.now() - lastActivity < limit){
+    scheduleSessionIdleCheck();
+    return;
+  }
+  sessionIdleSignOutInProgress = true;
+  const minutes = currentAuth.role === 'viewer' ? 15 : 30;
+  const logoutMessage = `Your session ended after ${minutes} minutes of inactivity. Please sign in again.`;
+  pendingSignOutMessage = logoutMessage;
+  const client = getSupabaseClient();
+  if(client) await client.auth.signOut({ scope:'local' });
+  await lockApplication(logoutMessage);
+  sessionIdleSignOutInProgress = false;
+}
+
+function startSessionIdleMonitor(){
+  if(!getLastSessionActivity()){
+    window.sessionStorage.setItem(SESSION_IDLE_ACTIVITY_KEY, String(Date.now()));
+  }
+  checkSessionIdleTimeout();
+}
 
 async function getVerifiedCurrentUser(){
   const client = getSupabaseClient();
@@ -2315,7 +2378,18 @@ function getSupabaseClient(){
     setCloudStatus('Supabase library failed to load (check your internet connection).', false);
     return null;
   }
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  // Migrate away from the former persistent localStorage session. This makes
+  // the next browser session require a fresh sign-in while still allowing a
+  // normal refresh in the same tab to restore the current session.
+  window.localStorage.removeItem('sb-rmxytydlrdrxnzskywbz-auth-token');
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth:{
+      storage:window.sessionStorage,
+      persistSession:true,
+      autoRefreshToken:true,
+      detectSessionInUrl:true,
+    },
+  });
   return supabaseClient;
 }
 
@@ -2489,6 +2563,7 @@ async function establishAuthorizedSession(){
   }
   currentAuth = auth;
   applyRolePermissions(auth);
+  startSessionIdleMonitor();
   document.body.classList.remove('auth-locked');
   document.body.classList.add('auth-unlocked');
   dashboard.render();
@@ -2505,6 +2580,7 @@ async function establishAuthorizedSession(){
 }
 
 async function lockApplication(message=''){
+  clearSessionIdleMonitor();
   currentAuth = { user:null, role:null, fullName:null, department:null, accessMode:null };
   closeUserManager();
   if(realtimeChannel){
@@ -2612,11 +2688,13 @@ async function updateAccountPassword(event){
     if(!client) throw new Error('Supabase is unavailable.');
     const { error } = await client.auth.updateUser({ password });
     if(error) throw error;
+    const logoutMessage = 'Password updated. Sign in again with your new password.';
+    pendingSignOutMessage = logoutMessage;
     await client.auth.signOut({ scope:'global' });
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
     passwordChangeFromDashboard = false;
-    await lockApplication('Password updated. Sign in again with your new password.');
+    await lockApplication(logoutMessage);
   }catch(err){
     setAuthStatus('resetStatus', err.message || 'Password update failed.');
   }finally{
@@ -2625,9 +2703,12 @@ async function updateAccountPassword(event){
 }
 
 async function signOutCloud(){
+  clearSessionIdleMonitor();
+  const logoutMessage = 'You have signed out safely.';
+  pendingSignOutMessage = logoutMessage;
   const client = getSupabaseClient();
   if(client) await client.auth.signOut({ scope:'local' });
-  await lockApplication('You have signed out safely.');
+  await lockApplication(logoutMessage);
 }
 
 async function initAuthSession(){
@@ -2642,11 +2723,13 @@ async function initAuthSession(){
         setAuthView('reset');
       },0);
     }else if(event === 'SIGNED_OUT'){
-      setTimeout(()=>lockApplication(),0);
+      const message = pendingSignOutMessage;
+      pendingSignOutMessage = '';
+      setTimeout(()=>lockApplication(message),0);
     }
   });
   const { data, error } = await client.auth.getSession();
-  if(error || !data?.session){ setAuthView('login'); return; }
+  if(error || !data?.session){ clearSessionIdleMonitor(); setAuthView('login'); return; }
   try{ await establishAuthorizedSession(); }
   catch(err){ await lockApplication(err.message || 'Your session is not authorized.'); }
 }
@@ -2727,8 +2810,14 @@ document.getElementById('departmentRecordsBody').addEventListener('click',event=
 ['resetDemoBannerBtn','resetDemoBtn'].forEach(id=>document.getElementById(id).addEventListener('click',()=>resetInteractiveDemo()));
 document.getElementById('applyDemoScenarioBtn').addEventListener('click', applyInteractiveDemoScenario);
 ['click','input','change','keydown'].forEach(eventName=>document.addEventListener(eventName,()=>{
+  markSessionActivity();
   if(currentAuth.role === 'viewer' && currentAuth.accessMode === 'demo') scheduleDemoReset();
 },{passive:true}));
+document.addEventListener('scroll', markSessionActivity, {passive:true, capture:true});
+window.addEventListener('focus', checkSessionIdleTimeout);
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') checkSessionIdleTimeout();
+});
 // ---------------------------------------------------------------------------
 // ERP DATA SYNC (Phase 2) — reads specific sheets by name from the full ERP
 // workbook (LPG_Operations_Management_System.xlsx) and syncs each into its
