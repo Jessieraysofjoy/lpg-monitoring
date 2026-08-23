@@ -389,7 +389,9 @@
   .auth-brand{
     position:relative; overflow:hidden; padding:52px; display:flex; flex-direction:column; justify-content:space-between;
     color:#f5f7fa; background-color:#dff8f3; background-image:url('assets/lpg-login-hero.png');
-    background-repeat:no-repeat; background-position:left center; background-size:auto 100%;
+    /* Crop before the login card baked into the hero artwork so no duplicate
+       vertical card edge appears between the desktop hero and live form. */
+    background-repeat:no-repeat; background-position:left center; background-size:176% auto;
   }
   .auth-brand::after{ display:none; }
   .auth-brand > *{ opacity:0; pointer-events:none; }
@@ -438,7 +440,7 @@
   }
   .auth-input::placeholder{ color:#7893a0; }
   .auth-input:focus{ border-color:#12e2a3; box-shadow:0 0 0 3px rgba(18,226,163,.10); }
-  #authViewRegister .auth-input, #authViewForgot .auth-input, #authViewReset .auth-input{ padding-left:14px; }
+  #authViewEmployee .auth-input, #authViewRegister .auth-input, #authViewForgot .auth-input, #authViewReset .auth-input{ padding-left:14px; }
   .password-wrap{ position:relative; }
   .password-wrap .auth-input{ padding-right:70px; }
   .password-toggle{ position:absolute; right:14px; top:14px; padding:4px 6px; border:0; background:none;
@@ -454,6 +456,7 @@
   .auth-status.ok{ color:var(--positive); }
   .auth-no-signup{ margin-top:26px; padding-top:22px; border-top:1px solid rgba(131,169,181,.32);
     color:#a7bbc4; font-size:11px; text-align:center; }
+  .auth-no-signup + .auth-no-signup{ margin-top:8px; padding-top:0; border-top:0; }
   .viewer-register-link{ margin-left:5px; border:0; background:none; color:#1ce9b2; cursor:pointer; font-size:11px; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
   .auth-trust-row{ display:flex; justify-content:center; gap:16px; margin-top:18px; color:#a3b8c1; font-size:10.5px; }
   .auth-trust-row span{ display:flex; align-items:center; gap:6px; }
@@ -512,6 +515,7 @@
   .user-email{ margin-top:3px; color:var(--text-faint); font-size:10.5px; }
   .status-pill{ display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border-radius:999px; font-size:10px; }
   .status-pill.active{ color:var(--positive); background:rgba(74,222,128,.10); }
+  .status-pill.pending{ color:#f4d35e; background:rgba(244,211,94,.12); }
   .status-pill.disabled{ color:var(--negative); background:rgba(248,113,113,.10); }
   .user-action-btn{ width:auto; margin:0; padding:6px 9px; font-size:10.5px; }
   .user-action-btn.danger{ color:var(--negative); border-color:rgba(248,113,113,.28); }
@@ -645,7 +649,7 @@
           <span class="online-pill"><i></i>System Online</span>
         </div>
         <h2>Welcome back</h2>
-        <p class="intro">Sign in to access the LPG Operations Management System.</p>
+        <p class="intro">Authorized employees only. Sign in using your approved company account.</p>
         <label class="auth-label" for="loginEmail">Email or Username</label>
         <div class="auth-input-wrap">
           <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>
@@ -660,8 +664,36 @@
         <div class="auth-links"><button class="auth-link" id="forgotPasswordLink" type="button">Forgot password?</button></div>
         <button class="auth-submit" id="loginSubmitBtn" type="submit">🔒&nbsp;&nbsp; Sign in securely</button>
         <div class="auth-status" id="loginStatus" role="status"></div>
-        <div class="auth-no-signup">Need view-only access?<button class="viewer-register-link" id="openViewerRegistrationBtn" type="button">Create Viewer access</button></div>
+        <div class="auth-no-signup">Authorized employee?<button class="viewer-register-link" id="openEmployeeRegistrationBtn" type="button">Request employee access</button></div>
+        <div class="auth-no-signup">Need view-only access?<button class="viewer-register-link" id="openViewerRegistrationBtn" type="button">Open Viewer access</button></div>
         <div class="auth-trust-row"><span>♙ Authorized personnel only</span><span>♢ Protected by secure authentication</span></div>
+      </form>
+      <form class="auth-panel hidden" id="authViewEmployee" novalidate>
+        <h2>Employee access request</h2>
+        <p class="intro">Create your password now. After email verification, an administrator must approve your account before you can sign in.</p>
+        <div class="register-name-grid">
+          <div><label class="auth-label" for="employeeFirstName">First name</label><input class="auth-input" type="text" id="employeeFirstName" maxlength="60" autocomplete="given-name" required></div>
+          <div><label class="auth-label" for="employeeSurname">Surname</label><input class="auth-input" type="text" id="employeeSurname" maxlength="60" autocomplete="family-name" required></div>
+        </div>
+        <label class="auth-label" for="employeeUsername">Username</label>
+        <input class="auth-input" type="text" id="employeeUsername" maxlength="32" autocomplete="username" required placeholder="e.g. juan.delacruz">
+        <label class="auth-label" for="employeeEmail">Company email address</label>
+        <input class="auth-input" type="email" id="employeeEmail" maxlength="254" autocomplete="email" required placeholder="name@company.com">
+        <label class="auth-label" for="employeeDepartment">Requested department</label>
+        <select class="auth-input" id="employeeDepartment" required>
+          <option value="operations">Operations</option>
+          <option value="logistics">Logistics</option>
+          <option value="inventory">Inventory</option>
+          <option value="production">Production</option>
+        </select>
+        <div class="register-name-grid">
+          <div><label class="auth-label" for="employeePassword">Password</label><input class="auth-input" type="password" id="employeePassword" minlength="10" autocomplete="new-password" required placeholder="At least 10 characters"></div>
+          <div><label class="auth-label" for="employeePasswordConfirm">Confirm password</label><input class="auth-input" type="password" id="employeePasswordConfirm" minlength="10" autocomplete="new-password" required placeholder="Repeat password"></div>
+        </div>
+        <div class="register-note">Your requested role and department access can be changed by the administrator during approval.</div>
+        <button class="auth-submit" id="employeeRegisterBtn" type="submit">Submit access request</button>
+        <div class="auth-status" id="employeeRegisterStatus" role="status"></div>
+        <div class="auth-links"><button class="auth-link" id="backFromEmployeeBtn" type="button">← Back to employee sign in</button></div>
       </form>
       <form class="auth-panel hidden" id="authViewRegister" novalidate>
         <h2>Explore the dashboard</h2>
@@ -673,7 +705,7 @@
         <label class="auth-label" for="viewerEmail">Email address</label>
         <input class="auth-input" type="email" id="viewerEmail" autocomplete="email" required placeholder="name@example.com">
         <div class="register-note">Viewer access uses synthetic demonstration data. Changes are temporary and automatically reset.</div>
-        <button class="auth-submit" id="viewerRegisterBtn" type="submit">Send verification link</button>
+        <button class="auth-submit" id="viewerRegisterBtn" type="submit">Send Viewer OTP link</button>
         <div class="auth-status" id="registerStatus" role="status"></div>
         <div class="auth-links"><button class="auth-link" id="backFromRegisterBtn" type="button">← Back to sign in</button></div>
       </form>
@@ -1933,17 +1965,20 @@ async function getVerifiedCurrentUser(){
 
   const { data:profile, error:profileError } = await client
     .from('profiles')
-    .select('role, full_name, username, department, access_mode, is_active')
+    .select('role, full_name, username, department, access_mode, is_active, approval_status')
     .eq('id', userData.user.id)
     .maybeSingle();
   if(profileError) return { user:userData.user, role:null, error:profileError.message };
   if(!profile || !profile.role) return { user:userData.user, role:null, error:'No authorized profile role is assigned to this account.' };
-  if(profile.is_active === false) return { user:userData.user, role:null, error:'This account has been disabled. Contact your administrator.' };
-  return { user:userData.user, role:String(profile.role).toLowerCase(), fullName:profile.full_name || '', username:profile.username || '', department:profile.department || 'all', accessMode:profile.access_mode || 'live', isActive:true, error:null };
+  const role=String(profile.role).toLowerCase();
+  const common={user:userData.user,role,fullName:profile.full_name||'',username:profile.username||'',department:profile.department||'all',accessMode:profile.access_mode||'live'};
+  if(profile.approval_status === 'pending') return {...common,isActive:false,error:'Your employee access request is pending administrator approval.'};
+  if(profile.is_active === false || profile.approval_status === 'disabled') return {...common,isActive:false,error:'This account has been disabled. Contact your administrator.'};
+  return {...common,isActive:true,error:null};
 }
 
 function setAuthView(name){
-  ['Loading','Login','Register','Forgot','Reset'].forEach(view => {
+  ['Loading','Login','Employee','Register','Forgot','Reset'].forEach(view => {
     document.getElementById('authView' + view).classList.toggle('hidden', view.toLowerCase() !== name);
   });
 }
@@ -2121,23 +2156,24 @@ function renderManagedUsers(users){
     const editable = !protectedAdmin && !protectedViewer;
     const roleControl = !editable
       ? `<span class="role-badge">${escapeHtml(user.role)}</span>`
-      : `<select class="user-role-select" data-user-role="${escapeHtml(user.id)}" ${user.is_active ? '' : 'disabled'}>
+      : `<select class="user-role-select" data-user-role="${escapeHtml(user.id)}">
           <option value="assistant" ${user.role === 'assistant' ? 'selected' : ''}>Assistant</option>
           <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>Operator</option>
           <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>Supervisor</option>
           <option value="analyst" ${user.role === 'analyst' ? 'selected' : ''}>Analyst</option>
         </select>`;
     const departmentControl = editable
-      ? `<select class="user-role-select" data-user-department="${escapeHtml(user.id)}" ${user.role === 'analyst' || !user.is_active ? 'disabled' : ''}>
+      ? `<select class="user-role-select" data-user-department="${escapeHtml(user.id)}" ${user.role === 'analyst' ? 'disabled' : ''}>
           ${['operations','logistics','inventory','production'].map(dep=>`<option value="${dep}" ${user.department === dep ? 'selected' : ''}>${dep[0].toUpperCase()+dep.slice(1)}</option>`).join('')}
         </select>`
       : escapeHtml(user.department === 'all' ? 'All / Demo' : user.department);
-    const statusClass = user.is_active ? 'active' : 'disabled';
-    const statusText = user.is_active ? '● Active' : '● Disabled';
+    const isPending = user.approval_status === 'pending';
+    const statusClass = user.is_active ? 'active' : (isPending ? 'pending' : 'disabled');
+    const statusText = user.is_active ? '● Active' : (isPending ? (user.email_confirmed_at ? '● Pending approval' : '● Pending email + approval') : '● Disabled');
     const action = locked
       ? `<span class="current-user-note">${user.is_current_user ? 'Current account' : 'Protected admin'}</span>`
       : `<div class="user-action-group">
-          <button class="action-btn user-action-btn ${user.is_active ? 'danger' : ''}" type="button" data-user-status="${escapeHtml(user.id)}" data-next-active="${String(!user.is_active)}">${user.is_active ? 'Disable' : 'Enable'}</button>
+          <button class="action-btn user-action-btn ${user.is_active ? 'danger' : ''}" type="button" data-user-status="${escapeHtml(user.id)}" data-next-active="${String(!user.is_active)}">${user.is_active ? 'Disable' : (isPending ? 'Approve' : 'Enable')}</button>
           <button class="action-btn user-action-btn remove" type="button" data-user-delete="${escapeHtml(user.id)}" data-user-label="${escapeHtml(user.email || user.full_name || 'this user')}">Remove</button>
         </div>`;
     return `<tr>
@@ -2625,6 +2661,40 @@ async function loginWithPassword(event){
   }
 }
 
+async function registerEmployeeAccess(event){
+  event.preventDefault();
+  const firstName=document.getElementById('employeeFirstName').value.trim();
+  const surname=document.getElementById('employeeSurname').value.trim();
+  const username=document.getElementById('employeeUsername').value.trim().toLowerCase();
+  const email=document.getElementById('employeeEmail').value.trim().toLowerCase();
+  const department=document.getElementById('employeeDepartment').value;
+  const password=document.getElementById('employeePassword').value;
+  const confirm=document.getElementById('employeePasswordConfirm').value;
+  const btn=document.getElementById('employeeRegisterBtn');
+  if(firstName.length<2||surname.length<2||!/^[a-z][a-z0-9._-]{2,31}$/.test(username)||!email.includes('@')){
+    setAuthStatus('employeeRegisterStatus','Enter your name, valid username, and company email.'); return;
+  }
+  if(password.length<10){ setAuthStatus('employeeRegisterStatus','Use a password with at least 10 characters.'); return; }
+  if(password!==confirm){ setAuthStatus('employeeRegisterStatus','The passwords do not match.'); return; }
+  if(location.protocol==='file:'){
+    setAuthStatus('employeeRegisterStatus','Employee registration requires the hosted HTTPS dashboard.'); return;
+  }
+  btn.disabled=true; btn.textContent='Submitting…'; setAuthStatus('employeeRegisterStatus');
+  try{
+    const client=getSupabaseClient();
+    if(!client) throw new Error('Supabase is unavailable.');
+    const {data,error}=await client.functions.invoke('employee-signup',{body:{first_name:firstName,surname,username,email,department,password}});
+    if(error||data?.error){
+      let message=data?.error||error?.message||'Unable to submit the access request.';
+      try{const payload=await error?.context?.json();if(payload?.error)message=payload.error;}catch(_ignored){}
+      throw new Error(message);
+    }
+    event.currentTarget.reset();
+    setAuthStatus('employeeRegisterStatus',data?.message||'Request submitted. Verify your email, then wait for administrator approval.',true);
+  }catch(err){setAuthStatus('employeeRegisterStatus',err.message||'Unable to submit the access request.');}
+  finally{btn.disabled=false;btn.textContent='Submit access request';}
+}
+
 async function registerViewerAccess(event){
   event.preventDefault();
   const firstName = document.getElementById('viewerFirstName').value.trim();
@@ -2643,12 +2713,12 @@ async function registerViewerAccess(event){
     if(!client) throw new Error('Supabase is unavailable.');
     const { error } = await client.auth.signInWithOtp({
       email,
-      options:{ shouldCreateUser:true, emailRedirectTo:location.origin+location.pathname, data:{first_name:firstName,surname,full_name:`${firstName} ${surname}`} }
+      options:{ shouldCreateUser:true, emailRedirectTo:location.origin+location.pathname, data:{access_type:'viewer',first_name:firstName,surname,full_name:`${firstName} ${surname}`} }
     });
     if(error) throw error;
-    setAuthStatus('registerStatus','Verification sent. Check your email, then open the secure link to enter Demo Mode.', true);
+    setAuthStatus('registerStatus','Viewer OTP link sent. Open it from your email and the demo dashboard will open automatically.', true);
   }catch(err){ setAuthStatus('registerStatus',err.message || 'Unable to send verification.'); }
-  finally{ btn.disabled = false; btn.textContent = 'Send verification link'; }
+  finally{ btn.disabled = false; btn.textContent = 'Send Viewer OTP link'; }
 }
 
 async function sendPasswordRecovery(event){
@@ -2735,6 +2805,7 @@ async function initAuthSession(){
 }
 
 document.getElementById('authViewLogin').addEventListener('submit', loginWithPassword);
+document.getElementById('authViewEmployee').addEventListener('submit', registerEmployeeAccess);
 document.getElementById('authViewRegister').addEventListener('submit', registerViewerAccess);
 document.getElementById('authViewForgot').addEventListener('submit', sendPasswordRecovery);
 document.getElementById('authViewReset').addEventListener('submit', updateAccountPassword);
@@ -2749,6 +2820,8 @@ document.getElementById('forgotPasswordLink').addEventListener('click', ()=>{
   setAuthStatus('recoveryStatus'); setAuthView('forgot');
 });
 document.getElementById('openViewerRegistrationBtn').addEventListener('click', ()=>{ setAuthStatus('registerStatus'); setAuthView('register'); });
+document.getElementById('openEmployeeRegistrationBtn').addEventListener('click', ()=>{ setAuthStatus('employeeRegisterStatus'); setAuthView('employee'); });
+document.getElementById('backFromEmployeeBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
 document.getElementById('backFromRegisterBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
 document.getElementById('backToLoginBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
 document.getElementById('cancelPasswordChangeBtn').addEventListener('click', ()=>{
