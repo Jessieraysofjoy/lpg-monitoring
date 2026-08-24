@@ -711,26 +711,14 @@
       </form>
       <form class="auth-panel hidden" id="authViewEmployee" novalidate>
         <h2>Employee access request</h2>
-        <p class="intro">Create your password now. An administrator must approve your employee account before you can sign in.</p>
+        <p class="intro">Send your name and email to the administrator. After approval, you will receive a secure link to create your password.</p>
         <div class="register-name-grid">
           <div><label class="auth-label" for="employeeFirstName">First name</label><input class="auth-input" type="text" id="employeeFirstName" maxlength="60" autocomplete="given-name" required></div>
           <div><label class="auth-label" for="employeeSurname">Surname</label><input class="auth-input" type="text" id="employeeSurname" maxlength="60" autocomplete="family-name" required></div>
         </div>
-        <label class="auth-label" for="employeeEmail">Company email address</label>
+        <label class="auth-label" for="employeeEmail">Email address</label>
         <input class="auth-input" type="email" id="employeeEmail" maxlength="254" autocomplete="email" inputmode="email" required placeholder="name@company.com">
-        <label class="auth-label" for="employeeDepartment">Requested department</label>
-        <select class="auth-input" id="employeeDepartment" required>
-          <option value="operations">Operations</option>
-          <option value="logistics">Logistics</option>
-          <option value="inventory">Inventory</option>
-          <option value="production">Production</option>
-          <option value="accounting">Accounting</option>
-        </select>
-        <div class="register-name-grid">
-          <div><label class="auth-label" for="employeePassword">Password</label><input class="auth-input" type="password" id="employeePassword" minlength="6" autocomplete="new-password" required placeholder="At least 6 characters"></div>
-          <div><label class="auth-label" for="employeePasswordConfirm">Confirm password</label><input class="auth-input" type="password" id="employeePasswordConfirm" minlength="6" autocomplete="new-password" required placeholder="Repeat password"></div>
-        </div>
-        <div class="register-note">Accounting covers Sales, Bulk Purchases, Bulk Withdrawals, expenses, and related financial records. Access remains subject to administrator approval.</div>
+        <div class="register-note">The administrator will validate your request and assign the correct role and department. The emailed password-setup link is intended to expire after one hour.</div>
         <div class="auth-status" id="employeeRegisterStatus" role="status"></div>
         <button class="auth-submit" id="employeeRegisterBtn" type="submit">Submit access request</button>
         <div class="auth-links"><button class="auth-link" id="backFromEmployeeBtn" type="button">← Back to employee sign in</button></div>
@@ -781,7 +769,7 @@
     <div class="header-title">
       <div class="icon"><img src="assets/lpg-logo.png" alt="LPG Operations logo"></div>
       <div>
-        <h1>LPG Operations Management System</h1>
+        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2</small></h1>
         <div class="subtitle" id="subtitle-range">Loading period…</div>
       </div>
     </div>
@@ -1046,7 +1034,7 @@
     <div class="user-manager-head">
       <div>
         <h2 id="userManagerTitle">Admin User Management</h2>
-        <p>Invite personnel and assign a secure role plus department scope. Viewer access uses verified self-registration.</p>
+        <p>Review employee requests, assign role and department, then send a secure password-setup link.</p>
       </div>
       <button class="action-btn user-manager-close" id="closeUserManagerBtn" type="button">✕ Close</button>
     </div>
@@ -1069,7 +1057,7 @@
         <label for="inviteDepartment">Department</label>
         <select id="inviteDepartment"><option value="operations">Operations</option><option value="logistics">Logistics</option><option value="inventory">Inventory</option><option value="production">Production</option><option value="accounting">Accounting</option></select>
       </div>
-      <button class="action-btn primary" id="inviteUserBtn" type="submit">Send Invite</button>
+      <button class="action-btn primary" id="inviteUserBtn" type="submit">Send Setup Invite</button>
     </form>
     <div class="user-manager-status" id="userManagerStatus" role="status"></div>
     <div class="user-table-wrap">
@@ -2253,27 +2241,33 @@ function renderManagedUsers(users){
   const body = document.getElementById('userManagementBody');
   if(!users.length){ body.innerHTML = '<tr><td colspan="6">No users found.</td></tr>'; return; }
   body.innerHTML = users.map(user => {
+    const isRequest = user.account_type === 'request';
     const protectedAdmin = user.role === 'admin';
     const protectedViewer = user.role === 'viewer';
     const locked = protectedAdmin || user.is_current_user;
     const editable = !protectedAdmin && !protectedViewer;
     const roleControl = !editable
       ? `<span class="role-badge">${escapeHtml(user.role)}</span>`
-      : `<select class="user-role-select" data-user-role="${escapeHtml(user.id)}">
+      : `<select class="user-role-select" ${isRequest ? `data-request-role="${escapeHtml(user.request_id)}"` : `data-user-role="${escapeHtml(user.id)}"`}>
           <option value="assistant" ${user.role === 'assistant' ? 'selected' : ''}>Assistant</option>
           <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>Operator</option>
           <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>Supervisor</option>
           <option value="analyst" ${user.role === 'analyst' ? 'selected' : ''}>Analyst</option>
         </select>`;
     const departmentControl = editable
-      ? `<select class="user-role-select" data-user-department="${escapeHtml(user.id)}" ${user.role === 'analyst' ? 'disabled' : ''}>
+      ? `<select class="user-role-select" ${isRequest ? `data-request-department="${escapeHtml(user.request_id)}"` : `data-user-department="${escapeHtml(user.id)}"`} ${user.role === 'analyst' ? 'disabled' : ''}>
           ${['operations','logistics','inventory','production','accounting'].map(dep=>`<option value="${dep}" ${user.department === dep ? 'selected' : ''}>${dep[0].toUpperCase()+dep.slice(1)}</option>`).join('')}
         </select>`
       : escapeHtml(user.department === 'all' ? 'All / Demo' : user.department);
-    const isPending = user.approval_status === 'pending';
+    const isPending = user.approval_status === 'pending' || isRequest;
     const statusClass = user.is_active ? 'active' : (isPending ? 'pending' : 'disabled');
-    const statusText = user.is_active ? '● Active' : (isPending ? (user.email_confirmed_at ? '● Pending approval' : '● Pending email + approval') : '● Disabled');
-    const action = locked
+    const statusText = user.is_active ? '● Active' : (isRequest ? '● Awaiting admin review' : (isPending ? '● Pending approval' : '● Disabled'));
+    const action = isRequest
+      ? `<div class="user-action-group">
+          <button class="action-btn user-action-btn" type="button" data-request-approve="${escapeHtml(user.request_id)}" data-request-name="${escapeHtml(user.full_name)}">Approve &amp; send link</button>
+          <button class="action-btn user-action-btn remove" type="button" data-request-reject="${escapeHtml(user.request_id)}">Reject</button>
+        </div>`
+      : locked
       ? `<span class="current-user-note">${user.is_current_user ? 'Current account' : 'Protected admin'}</span>`
       : `<div class="user-action-group">
           <button class="action-btn user-action-btn ${user.is_active ? 'danger' : ''}" type="button" data-user-status="${escapeHtml(user.id)}" data-next-active="${String(!user.is_active)}">${user.is_active ? 'Disable' : (isPending ? 'Approve' : 'Enable')}</button>
@@ -2334,7 +2328,7 @@ async function submitUserInvite(event){
     setUserManagerStatus(data.message || 'Invitation sent.', true);
     await loadManagedUsers();
   }catch(err){ setUserManagerStatus(err.message || 'Invitation failed.', false); }
-  finally{ button.disabled = false; button.textContent = 'Send Invite'; }
+  finally{ button.disabled = false; button.textContent = 'Send Setup Invite'; }
 }
 
 async function changeManagedUserProfile(userId){
@@ -2359,6 +2353,27 @@ async function changeManagedUserStatus(userId, isActive){
     setUserManagerStatus(data.message || 'Access updated.', true);
     await loadManagedUsers();
   }catch(err){ setUserManagerStatus(err.message || 'Access update failed.', false); await loadManagedUsers(); }
+}
+
+async function approveEmployeeRequest(requestId, fullName){
+  const role = document.querySelector(`[data-request-role="${CSS.escape(requestId)}"]`)?.value || 'assistant';
+  const departmentEl = document.querySelector(`[data-request-department="${CSS.escape(requestId)}"]`);
+  const department = role === 'analyst' ? 'all' : (departmentEl?.value || 'operations');
+  setUserManagerStatus('Approving request and sending the secure password-setup link…', true);
+  try{
+    const data = await invokeUserManagement({action:'approve_request',request_id:requestId,full_name:fullName,role,department});
+    setUserManagerStatus(data.message || 'Request approved and setup link sent.', true);
+    await loadManagedUsers();
+  }catch(err){ setUserManagerStatus(err.message || 'Approval failed.', false); }
+}
+
+async function rejectEmployeeRequest(requestId){
+  if(!window.confirm('Reject this employee access request?')) return;
+  try{
+    const data = await invokeUserManagement({action:'reject_request',request_id:requestId});
+    setUserManagerStatus(data.message || 'Request rejected.', true);
+    await loadManagedUsers();
+  }catch(err){ setUserManagerStatus(err.message || 'Unable to reject request.', false); }
 }
 
 async function deleteManagedUser(userId, userLabel){
@@ -2778,15 +2793,10 @@ async function registerEmployeeAccess(event){
   const firstName=document.getElementById('employeeFirstName').value.trim();
   const surname=document.getElementById('employeeSurname').value.trim();
   const email=document.getElementById('employeeEmail').value.trim().toLowerCase();
-  const department=document.getElementById('employeeDepartment').value;
-  const password=document.getElementById('employeePassword').value;
-  const confirm=document.getElementById('employeePasswordConfirm').value;
   const btn=document.getElementById('employeeRegisterBtn');
   if(firstName.length<2||surname.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     setAuthStatus('employeeRegisterStatus','Enter your name and a valid company email address. Usernames are not accepted.'); return;
   }
-  if(password.length<6){ setAuthStatus('employeeRegisterStatus','Use a password with at least 6 characters.'); return; }
-  if(password!==confirm){ setAuthStatus('employeeRegisterStatus','The passwords do not match.'); return; }
   if(location.protocol==='file:'){
     setAuthStatus('employeeRegisterStatus','Employee registration requires the hosted HTTPS dashboard.'); return;
   }
@@ -2794,14 +2804,14 @@ async function registerEmployeeAccess(event){
   try{
     const client=getSupabaseClient();
     if(!client) throw new Error('Supabase is unavailable.');
-    const {data,error}=await client.functions.invoke('employee-signup',{body:{first_name:firstName,surname,email,department,password}});
+    const {data,error}=await client.functions.invoke('employee-signup',{body:{first_name:firstName,surname,email}});
     if(error||data?.error){
       let message=data?.error||error?.message||'Unable to submit the access request.';
       try{const payload=await error?.context?.json();if(payload?.error)message=payload.error;}catch(_ignored){}
       throw new Error(message);
     }
     form.reset();
-    setAuthStatus('employeeRegisterStatus',data?.message||'Request submitted. Wait for administrator approval before signing in.',true);
+    setAuthStatus('employeeRegisterStatus',data?.message||'Request submitted. After approval, check your email for the secure password-setup link.',true);
   }catch(err){setAuthStatus('employeeRegisterStatus',err.message||'Unable to submit the access request.');}
   finally{btn.disabled=false;btn.textContent='Submit access request';}
 }
@@ -2962,12 +2972,21 @@ document.getElementById('inviteRole').addEventListener('change', event => {
   document.getElementById('inviteDepartment').disabled = event.target.value === 'analyst';
 });
 document.getElementById('userManagementBody').addEventListener('change', event => {
+  const requestRole = event.target.closest('[data-request-role]');
+  if(requestRole){
+    const department = document.querySelector(`[data-request-department="${CSS.escape(requestRole.dataset.requestRole)}"]`);
+    if(department) department.disabled = requestRole.value === 'analyst';
+  }
   const select = event.target.closest('[data-user-role]');
   if(select) changeManagedUserProfile(select.dataset.userRole);
   const department = event.target.closest('[data-user-department]');
   if(department) changeManagedUserProfile(department.dataset.userDepartment);
 });
 document.getElementById('userManagementBody').addEventListener('click', event => {
+  const approveRequest = event.target.closest('[data-request-approve]');
+  if(approveRequest) approveEmployeeRequest(approveRequest.dataset.requestApprove, approveRequest.dataset.requestName || 'Employee');
+  const rejectRequest = event.target.closest('[data-request-reject]');
+  if(rejectRequest) rejectEmployeeRequest(rejectRequest.dataset.requestReject);
   const button = event.target.closest('[data-user-status]');
   if(button) changeManagedUserStatus(button.dataset.userStatus, button.dataset.nextActive === 'true');
   const deleteButton = event.target.closest('[data-user-delete]');
