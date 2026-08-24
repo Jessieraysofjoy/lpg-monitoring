@@ -449,6 +449,14 @@
   #authViewEmployee .register-note{ margin:0 0 10px; }
   #authViewEmployee .auth-submit{ min-height:50px; margin-top:2px; }
   #authViewEmployee .auth-links{ margin:10px 0 0; }
+  #employeeRegisterStatus:not(:empty){
+    min-height:auto; margin:2px 0 10px; padding:10px 12px; border-radius:9px;
+    background:rgba(248,113,113,.10); border:1px solid rgba(248,113,113,.30);
+    font-size:12px; font-weight:650;
+  }
+  #employeeRegisterStatus.ok:not(:empty){
+    background:rgba(74,222,128,.10); border-color:rgba(74,222,128,.30);
+  }
   .auth-card-top{ display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:26px; }
   .auth-shield{ width:62px; height:62px; display:grid; place-items:center; color:#18e7aa; }
   .auth-shield svg{ width:62px; height:62px; filter:drop-shadow(0 0 16px rgba(24,231,170,.22)); }
@@ -614,6 +622,8 @@
     #authViewEmployee .intro{ margin-bottom:12px; font-size:12px; }
     #authViewEmployee .auth-input{ min-height:42px; margin-bottom:9px; font-size:14px; }
     #authViewEmployee .auth-submit{ min-height:44px; }
+    #authViewEmployee .register-note{ padding:8px 10px; font-size:10px; line-height:1.4; }
+    #employeeRegisterStatus:not(:empty){ margin:0 0 9px; padding:9px 10px; font-size:11.5px; }
     .auth-card-top{ margin-bottom:20px; }
     .auth-shield,.auth-shield svg{ width:48px; height:48px; }
     .online-pill{ padding:8px 11px; font-size:10px; }
@@ -721,8 +731,8 @@
           <div><label class="auth-label" for="employeePasswordConfirm">Confirm password</label><input class="auth-input" type="password" id="employeePasswordConfirm" minlength="6" autocomplete="new-password" required placeholder="Repeat password"></div>
         </div>
         <div class="register-note">Accounting covers Sales, Bulk Purchases, Bulk Withdrawals, expenses, and related financial records. Access remains subject to administrator approval.</div>
-        <button class="auth-submit" id="employeeRegisterBtn" type="submit">Submit access request</button>
         <div class="auth-status" id="employeeRegisterStatus" role="status"></div>
+        <button class="auth-submit" id="employeeRegisterBtn" type="submit">Submit access request</button>
         <div class="auth-links"><button class="auth-link" id="backFromEmployeeBtn" type="button">← Back to employee sign in</button></div>
       </form>
       <form class="auth-panel hidden" id="authViewRegister" novalidate>
@@ -2077,6 +2087,9 @@ function setAuthStatus(id, message='', ok=false){
   const el = document.getElementById(id);
   el.textContent = message;
   el.className = 'auth-status ' + (message ? (ok ? 'ok' : 'err') : '');
+  if(message && id === 'employeeRegisterStatus'){
+    requestAnimationFrame(() => el.scrollIntoView({ behavior:'smooth', block:'center' }));
+  }
 }
 
 function showToast(message, ok=true){
