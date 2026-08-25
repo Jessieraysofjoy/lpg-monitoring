@@ -853,7 +853,7 @@
     <div class="header-title">
       <div class="icon"><img src="assets/lpg-logo.png" alt="LPG Operations logo"></div>
       <div>
-        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.2-CF5</small></h1>
+        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.2-CF6</small></h1>
         <div class="subtitle" id="subtitle-range">Loading period…</div>
       </div>
     </div>
@@ -1270,7 +1270,7 @@
         </button>
       </div>
     </section>
-    <div class="settings-version">LPG Operations Management System · Version 2.2.2-CF5 · Full Hero Review</div>
+    <div class="settings-version">LPG Operations Management System · Version 2.2.2-CF6 · Password Setup Guard</div>
   </aside>
 </div>
 
@@ -2261,6 +2261,9 @@ const AUTHORIZED_ROLES = new Set(['admin','manager','supervisor','analyst','ops_
 let currentAuth = { user:null, role:null, fullName:null, department:null, accessMode:null };
 let toastTimer = null;
 let passwordChangeFromDashboard = false;
+// Capture the recovery hint before Supabase consumes and cleans the URL.
+// This blocks session restoration from briefly unlocking the dashboard first.
+let passwordRecoveryFlowActive = /(?:^|[?#&])type=recovery(?:&|$)/i.test(location.href);
 let demoResetTimer = null;
 let sessionIdleTimer = null;
 let sessionIdleSignOutInProgress = false;
@@ -3036,18 +3039,22 @@ function subscribeRealtime(){
 async function establishAuthorizedSession(showWelcome=false){
   const client = getSupabaseClient();
   if(!client) throw new Error('Supabase library is unavailable. Check your internet connection.');
+  if(passwordRecoveryFlowActive){ showPasswordSetupScreen(); return false; }
   let auth = await getVerifiedCurrentUser();
+  if(passwordRecoveryFlowActive){ showPasswordSetupScreen(); return false; }
   if(auth.user && !auth.role){
     const { data:profileData, error:profileError } = await client.functions.invoke('complete-viewer-profile', { body:{} });
     if(profileError || profileData?.error) throw new Error(profileData?.error || profileError?.message || auth.error);
     auth = await getVerifiedCurrentUser();
   }
+  if(passwordRecoveryFlowActive){ showPasswordSetupScreen(); return false; }
   if(auth.error) throw new Error(auth.error);
   if(!AUTHORIZED_ROLES.has(auth.role)){
     await client.auth.signOut({ scope:'local' });
     throw new Error('This account has no authorized system role.');
   }
   currentAuth = auth;
+  if(passwordRecoveryFlowActive){ showPasswordSetupScreen(); return false; }
   applyRolePermissions(auth);
   startSessionIdleMonitor();
   document.body.classList.remove('auth-locked');
@@ -3068,6 +3075,17 @@ async function establishAuthorizedSession(showWelcome=false){
     await syncFromCloud();
     subscribeRealtime();
   }
+  return true;
+}
+
+function showPasswordSetupScreen(){
+  passwordRecoveryFlowActive = true;
+  passwordChangeFromDashboard = false;
+  clearSessionIdleMonitor();
+  document.body.classList.remove('auth-unlocked');
+  document.body.classList.add('auth-locked');
+  setAuthStatus('resetStatus','Create your private password before opening the dashboard.',true);
+  setAuthView('reset');
 }
 
 async function lockApplication(message=''){
@@ -3211,6 +3229,7 @@ async function updateAccountPassword(event){
     if(error) throw error;
     const logoutMessage = 'Password updated. Sign in again with your new password.';
     pendingSignOutMessage = logoutMessage;
+    passwordRecoveryFlowActive = false;
     await client.auth.signOut({ scope:'global' });
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
@@ -3237,12 +3256,8 @@ async function initAuthSession(){
   if(!client){ setAuthView('login'); setAuthStatus('loginStatus','Supabase library failed to load.'); return; }
   client.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY'){
-      setTimeout(()=>{
-        passwordChangeFromDashboard = false;
-        document.body.classList.remove('auth-unlocked');
-        document.body.classList.add('auth-locked');
-        setAuthView('reset');
-      },0);
+      passwordRecoveryFlowActive = true;
+      setTimeout(showPasswordSetupScreen,0);
     }else if(event === 'SIGNED_OUT'){
       const message = pendingSignOutMessage;
       pendingSignOutMessage = '';
@@ -3250,6 +3265,18 @@ async function initAuthSession(){
     }
   });
   const { data, error } = await client.auth.getSession();
+  // PASSWORD_RECOVERY may be emitted during getSession(). Always give that
+  // event priority over the ordinary restored-session path.
+  await new Promise(resolve=>setTimeout(resolve,0));
+  if(passwordRecoveryFlowActive){
+    if(error || !data?.session){
+      document.body.classList.remove('auth-unlocked');
+      document.body.classList.add('auth-locked');
+      setAuthView('reset');
+      setAuthStatus('resetStatus','This password-setup link is invalid or expired. Ask your administrator for a new link.');
+    }else showPasswordSetupScreen();
+    return;
+  }
   if(error || !data?.session){ clearSessionIdleMonitor(); setAuthView('login'); return; }
   try{ await establishAuthorizedSession(); }
   catch(err){ await lockApplication(err.message || 'Your session is not authorized.'); }
@@ -3275,10 +3302,15 @@ document.getElementById('openEmployeeRegistrationBtn').addEventListener('click',
 document.getElementById('backFromEmployeeBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
 document.getElementById('backFromRegisterBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
 document.getElementById('backToLoginBtn').addEventListener('click', ()=>{ setAuthStatus('loginStatus'); setAuthView('login'); });
-document.getElementById('cancelPasswordChangeBtn').addEventListener('click', ()=>{
+document.getElementById('cancelPasswordChangeBtn').addEventListener('click', async ()=>{
   setAuthStatus('resetStatus');
   if(passwordChangeFromDashboard){
     document.body.classList.remove('auth-locked'); document.body.classList.add('auth-unlocked');
+  }else if(passwordRecoveryFlowActive){
+    passwordRecoveryFlowActive = false;
+    const client=getSupabaseClient();
+    if(client) await client.auth.signOut({scope:'local'});
+    await lockApplication('Password setup cancelled. Use the secure email link again or request a new one.');
   }else setAuthView('login');
 });
 document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
