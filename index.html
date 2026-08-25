@@ -206,6 +206,14 @@
     width:100%; min-width:0; box-sizing:border-box;
     padding:7px 6px; font-size:11.5px;
   }
+  .timeline-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px;}
+  .timeline-presets .chip{padding:7px 6px;text-align:center;}
+  .timeline-selects{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px;}
+  .timeline-selects label{display:block;margin-bottom:4px;color:var(--text-faint);font-size:10px;}
+  .timeline-selects select{margin:0;}
+  .custom-date-row{display:none;margin-top:8px;}
+  .custom-date-row.show{display:flex;}
+  .selected-period{margin:7px 0 2px;color:var(--text-secondary);font-size:10.5px;line-height:1.45;}
   .reset-btn{
     width:100%; margin-top:4px; padding:9px; border-radius:8px; border:1px solid var(--border-soft);
     background:transparent; color:var(--text-secondary); font-size:12px; cursor:pointer;
@@ -268,7 +276,8 @@
   .ops-kpi .kpi-sub{font-size:9.5px;margin-top:6px;}
   .ops-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   .ops-chart-wrap{position:relative;height:220px;min-height:220px;}
-  .cofill-chart-wrap{position:relative;height:220px;min-height:220px;}
+  .donut-visual{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(155px,1.1fr);gap:10px;align-items:center;min-height:220px;}
+  .cofill-chart-wrap,.purchase-chart-wrap{position:relative;height:220px;min-height:220px;}
   .cofill-chart-center{
     position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:112px;
     text-align:center; pointer-events:none; line-height:1.15;
@@ -277,6 +286,12 @@
   .cofill-chart-center span{display:block;color:var(--text-faint);font-size:8.5px;text-transform:uppercase;letter-spacing:.45px;}
   .cofill-chart-center strong{display:block;margin-top:5px;color:var(--text-primary);font-size:19px;font-variant-numeric:tabular-nums;}
   .cofill-chart-center small{display:block;margin-top:3px;color:var(--text-secondary);font-size:8.5px;}
+  .donut-side-list{display:flex;flex-direction:column;gap:7px;min-width:0;}
+  .donut-side-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:var(--bg-card-alt);border:1px solid var(--border-soft);}
+  .donut-swatch{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
+  .donut-account{min-width:0;color:var(--text-secondary);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .donut-value{text-align:right;color:var(--text-primary);font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .donut-value small{display:block;margin-top:2px;color:var(--text-faint);font-size:8.5px;font-weight:400;}
   .sales-leader-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px;}
   .sales-leader{padding:9px;border-radius:9px;background:var(--bg-card-alt);border:1px solid var(--border-soft);min-width:0;}
   .sales-leader b{display:block;color:var(--accent);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -286,7 +301,7 @@
   .sales-mini-title{margin:0 0 5px;color:var(--text-secondary);font-size:9px;font-weight:700;text-align:center;text-transform:uppercase;letter-spacing:.4px;}
   .sales-mini-canvas{position:relative;height:155px;min-height:155px;}
   @media(max-width:1300px){.ops-kpi-row{grid-template-columns:repeat(3,1fr);}}
-  @media(max-width:760px){.ops-kpi-row{grid-template-columns:1fr 1fr}.ops-grid{grid-template-columns:1fr}.sales-leader-grid,.sales-breakdown-grid{grid-template-columns:1fr}.ops-chart-wrap,.cofill-chart-wrap{height:210px;min-height:210px}.sales-mini-canvas{height:175px;min-height:175px;}}
+  @media(max-width:760px){.ops-kpi-row{grid-template-columns:1fr 1fr}.ops-grid{grid-template-columns:1fr}.sales-leader-grid,.sales-breakdown-grid{grid-template-columns:1fr}.ops-chart-wrap,.cofill-chart-wrap,.purchase-chart-wrap{height:205px;min-height:205px}.donut-visual{grid-template-columns:1fr}.sales-mini-canvas{height:175px;min-height:175px;}}
   .chart-scroll{ width:100%; overflow-x:auto; overflow-y:hidden; padding-bottom:8px; scrollbar-color:var(--accent-dim) transparent; scrollbar-width:thin; }
   .chart-scroll-inner{ position:relative; min-width:100%; height:340px; }
   .chart-scroll-inner canvas{ width:100% !important; height:100% !important; max-height:none !important; }
@@ -397,19 +412,15 @@
 
   /* ---------- PRINT ---------- */
   /* ---------- HOVER BLINK EFFECT (all buttons/chips) ---------- */
-  @keyframes btn-blink{
-    0%, 100%{ opacity:1; }
-    50%{ opacity:0.45; }
-  }
   .action-btn:hover,
   .reset-btn:hover,
   .theme-toggle:hover,
   .chip:hover,
   .data-table thead th:hover{
-    animation: btn-blink 0.7s ease-in-out infinite;
+    filter:brightness(1.08);
   }
   .chip.active:hover{
-    animation: btn-blink 0.7s ease-in-out infinite;
+    filter:brightness(1.05);
   }
 
   /* ---------- AUTHENTICATION GATE ---------- */
@@ -421,7 +432,7 @@
     padding:0; background:#061419;
   }
   .auth-shell{
-    width:100%; min-height:100dvh; display:grid; grid-template-columns:59fr 41fr;
+    width:100%; min-height:100dvh; display:grid; grid-template-columns:minmax(0,59fr) minmax(0,41fr);
     overflow:hidden; border:0; border-radius:0; background:#07171b; position:relative;
   }
   .auth-brand{
@@ -431,7 +442,7 @@
        vertical card edge appears between the desktop hero and live form. */
     /* Keep the photographic LPG artwork full-height while cropping out the
        mock login card that is baked into the right side of the source image. */
-    background-repeat:no-repeat; background-position:left center; background-size:auto 100%;
+    background-repeat:no-repeat; background-position:left center; background-size:auto 120%; min-width:0;
   }
   .auth-brand::after{ display:none; }
   .auth-brand > *{ opacity:0; pointer-events:none; }
@@ -455,6 +466,7 @@
       radial-gradient(circle at 105% 52%, rgba(0,217,154,.13), transparent 34%),
       radial-gradient(circle at 8% 0%, rgba(42,240,189,.08), transparent 30%),
       linear-gradient(145deg,#06171b 0%,#041216 58%,#071b1c 100%);
+    min-width:0; overflow:hidden;
   }
   .auth-form-area::before,.auth-form-area::after{ display:none; }
   .auth-panel{
@@ -471,6 +483,7 @@
   #authViewEmployee .register-note{ margin:0 0 10px; }
   #authViewEmployee .auth-submit{ min-height:50px; margin-top:2px; }
   #authViewEmployee .auth-links{ margin:10px 0 0; }
+  .auth-form-area.employee-view{align-items:center;}
   #employeeRegisterStatus:not(:empty){
     min-height:auto; margin:2px 0 10px; padding:10px 12px; border-radius:9px;
     background:rgba(248,113,113,.10); border:1px solid rgba(248,113,113,.30);
@@ -577,12 +590,12 @@
   body.light-theme .settings-switch::after{ right:21px; }
   .settings-item.danger .settings-item-icon,.settings-item.danger .settings-item-main{ color:var(--negative); }
   .settings-version{ margin-top:17px; color:var(--text-faint); text-align:center; font-size:9.5px; }
-  .user-manager-overlay, .department-workspace-overlay{
+  .user-manager-overlay, .department-workspace-overlay, .pending-uploads-overlay{
     display:none; position:fixed; inset:0; z-index:2800; padding:28px;
     align-items:center; justify-content:center; background:rgba(2,10,7,.78); backdrop-filter:blur(6px);
   }
-  .user-manager-overlay.show, .department-workspace-overlay.show{ display:flex; }
-  .user-manager, .department-workspace{
+  .user-manager-overlay.show, .department-workspace-overlay.show, .pending-uploads-overlay.show{ display:flex; }
+  .user-manager, .department-workspace, .pending-uploads{
     width:min(1050px,100%); max-height:90vh; overflow:auto; padding:24px;
     border:1px solid var(--border-soft); border-radius:18px; background:var(--bg-card);
     box-shadow:0 28px 90px rgba(0,0,0,.58);
@@ -651,6 +664,7 @@
   .workspace-record-table{ min-width:850px; }
   .workspace-edit-btn{ width:auto; margin:0; padding:6px 9px; font-size:10.5px; }
   .workspace-permission-note{ margin:0 0 14px; padding:10px 12px; border-radius:9px; background:rgba(52,226,155,.06); color:var(--text-secondary); font-size:10.5px; line-height:1.55; }
+  .pending-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--warning);color:#261d00;font-size:10px;font-weight:800;}
   @media (min-width:761px) and (max-width:1050px){
     .auth-shell{ grid-template-columns:43fr 57fr; }
     .auth-form-area{ padding:24px; }
@@ -707,8 +721,8 @@
     .auth-trust-row{ display:none; }
     .register-name-grid{ grid-template-columns:1fr; gap:0; }
     .account-email{ display:none; }
-    .user-manager-overlay, .department-workspace-overlay{ padding:10px; }
-    .user-manager, .department-workspace{ padding:16px; max-height:96vh; }
+    .user-manager-overlay, .department-workspace-overlay, .pending-uploads-overlay{ padding:10px; }
+    .user-manager, .department-workspace, .pending-uploads{ padding:16px; max-height:96vh; }
     .invite-user-form{ grid-template-columns:1fr; }
     .invite-user-form .action-btn{ width:100%; }
     .department-entry-form{ grid-template-columns:1fr; }
@@ -727,7 +741,7 @@
     .kpi-value, .header h1, .panel-head h3{ color:#0e2a1f !important; }
     .table-wrap{ max-height:none !important; overflow:visible !important; }
     canvas{ max-height:220px !important; }
-    .auth-gate, .app-toast, .account-controls, .user-manager-overlay, .department-workspace-overlay{ display:none !important; }
+    .auth-gate, .app-toast, .account-controls, .user-manager-overlay, .department-workspace-overlay, .pending-uploads-overlay{ display:none !important; }
     .mobile-menu-btn, .sidebar-backdrop, .sidebar-close-btn{ display:none !important; }
   }
 </style>
@@ -749,7 +763,7 @@
         <div class="auth-feature-row"><span class="auth-feature">◉ Inventory Monitoring</span><span class="auth-feature">↗ Loss Analysis</span><span class="auth-feature">✓ Role-based Access</span></div>
       </div>
       <svg class="auth-tank-art" viewBox="0 0 500 340" aria-hidden="true"><g fill="none" stroke="#0c6b4a" stroke-width="4"><ellipse cx="290" cy="82" rx="110" ry="42"/><path d="M180 82v150c0 23 49 42 110 42s110-19 110-42V82M180 150c0 23 49 42 110 42s110-19 110-42M235 273v42m110-42v42M210 315h160"/><path d="M390 110h60v125h-50M245 45V18h75v27"/></g></svg>
-      <div class="auth-security-note">Protected by secure authentication and database Row Level Security. Access is applied according to role and department.</div>
+      <div class="auth-security-note">Protected by secure authentication and database Row Level Security. Access is applied according to the approved system role.</div>
     </div>
     <div class="auth-form-area">
       <div class="auth-panel" id="authViewLoading">
@@ -790,7 +804,7 @@
         </div>
         <label class="auth-label" for="employeeEmail">Email address</label>
         <input class="auth-input" type="email" id="employeeEmail" maxlength="254" autocomplete="email" inputmode="email" required placeholder="name@company.com">
-        <div class="register-note">The administrator will validate your request and assign the correct role and department. The emailed password-setup link is intended to expire after one hour.</div>
+        <div class="register-note">The administrator will validate your request and assign the correct role. The emailed password-setup link is intended to expire after one hour.</div>
         <div class="auth-status" id="employeeRegisterStatus" role="status"></div>
         <button class="auth-submit" id="employeeRegisterBtn" type="submit">Submit access request</button>
         <div class="auth-links"><button class="auth-link" id="backFromEmployeeBtn" type="button">← Back to employee sign in</button></div>
@@ -841,7 +855,7 @@
     <div class="header-title">
       <div class="icon"><img src="assets/lpg-logo.png" alt="LPG Operations logo"></div>
       <div>
-        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.1</small></h1>
+        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.2</small></h1>
         <div class="subtitle" id="subtitle-range">Loading period…</div>
       </div>
     </div>
@@ -866,12 +880,27 @@
   <div class="sidebar" id="sidebar">
     <button class="sidebar-close-btn" id="sidebarCloseBtn" type="button" aria-label="Close menu">✕ Close</button>
     <div class="slicer-box">
-      <h4>Date Range</h4>
-      <div class="date-row">
+      <h4>Timeline</h4>
+      <div class="timeline-presets" id="datePresetChips">
+        <button class="chip" type="button" data-date-preset="today">Today</button>
+        <button class="chip" type="button" data-date-preset="7d">7 Days</button>
+        <button class="chip" type="button" data-date-preset="30d">30 Days</button>
+        <button class="chip" type="button" data-date-preset="this-month">This Month</button>
+        <button class="chip" type="button" data-date-preset="last-month">Last Month</button>
+        <button class="chip" type="button" data-date-preset="ytd">YTD</button>
+        <button class="chip" type="button" data-date-preset="all">All</button>
+        <button class="chip" type="button" data-date-preset="custom">Custom</button>
+      </div>
+      <div class="timeline-selects">
+        <div><label for="yearSlicer">Year</label><select id="yearSlicer"></select></div>
+        <div><label for="monthSlicer">Month</label><select id="monthSlicer"></select></div>
+      </div>
+      <div class="date-row custom-date-row" id="customDateRow">
         <div><label>From</label><input type="date" id="dateFrom"></div>
         <div><label>To</label><input type="date" id="dateTo"></div>
       </div>
-      <button class="reset-btn" id="resetDates">Reset to full month</button>
+      <div class="selected-period" id="selectedPeriodLabel">Loading selected period…</div>
+      <button class="reset-btn" id="resetDates">Reset to all dates</button>
     </div>
 
     <div class="slicer-box">
@@ -910,23 +939,29 @@
       <h4>Upload Data</h4>
       <button class="action-btn primary" id="uploadTriggerBtn" type="button">⬆ Upload File</button>
       <input type="file" id="fileUpload" accept=".xlsx,.xlsb,.xls,.csv">
-      <div style="font-size:10.5px; color:var(--text-faint); margin:-4px 0 8px; display:flex; align-items:center; gap:4px;">🔒 Verified Supabase administrator required</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin:-4px 0 8px; display:flex; align-items:center; gap:4px;">🔒 Every upload enters Pending Review before publishing</div>
       <button class="action-btn" id="resetDataBtn">↺ Restore Original Data</button>
-      <div class="upload-status" id="uploadStatus">Accepts either file: the simple monthly report (Date, Tanks 1–10, Purchases, Withdrawals, Ending Stock) updates this dashboard's charts. The full LPG_Operations_Management_System.xlsx workbook syncs its 14 sheets to Supabase instead. Upload either — the dashboard checks the sheet names and runs whichever applies, automatically.</div>
+      <div class="upload-status" id="uploadStatus">Accepts the dashboard report or full LPG workbook. The file is validated and queued; it does not affect live charts until an authorized reviewer approves it.</div>
+    </div>
+
+    <div class="slicer-box" id="pendingUploadsAccessBox">
+      <h4>Pending Uploads</h4>
+      <button class="action-btn" id="openPendingUploadsBtn" type="button">Review queue <span class="pending-count" id="pendingUploadCount">0</span></button>
+      <div class="upload-status">Maker-checker control: non-Admin uploaders cannot approve their own files.</div>
     </div>
 
     <div class="slicer-box" id="exportAccessBox">
       <h4>Export</h4>
       <button class="action-btn" id="exportExcelBtn">📊 Export to Excel</button>
       <button class="action-btn" id="exportPdfBtn">🖨 Export to PDF</button>
-      <div style="font-size:10.5px; color:var(--text-faint); margin-top:4px; display:flex; align-items:center; gap:4px;">🔒 Administrator or Analyst role required</div>
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:4px; display:flex; align-items:center; gap:4px;">Available to approved employee roles</div>
     </div>
 
     <div class="slicer-box department-workspace-box" id="departmentWorkspaceBox">
-      <h4>Department Workspace</h4>
-      <div class="workspace-scope" id="departmentWorkspaceScope">Scoped operational entry</div>
+      <h4>Operations Workspace</h4>
+      <div class="workspace-scope" id="departmentWorkspaceScope">Controlled operational records</div>
       <button class="action-btn primary" id="openDepartmentWorkspaceBtn" type="button">✎ Open Data Entry</button>
-      <div style="font-size:10.5px; color:var(--text-faint); line-height:1.5;">Securely limited by your role and assigned department. Deleting records is not allowed.</div>
+      <div style="font-size:10.5px; color:var(--text-faint); line-height:1.5;">Available to Admin, Manager and Analyst. Changes remain auditable; deleting records is disabled.</div>
     </div>
 
     <div class="slicer-box">
@@ -973,8 +1008,8 @@
     </div>
     <div class="ops-kpi-row">
       <div class="ops-kpi"><div class="kpi-label">Cylinders Refilled</div><div class="kpi-value" id="opsProductionTotal">—</div><div class="kpi-sub">all selected SKUs</div></div>
-      <div class="ops-kpi"><div class="kpi-label">Filled Floor Stock</div><div class="kpi-value" id="opsFilledStock">—</div><div class="kpi-sub">latest month snapshot</div></div>
-      <div class="ops-kpi"><div class="kpi-label">Empty Cylinders</div><div class="kpi-value" id="opsEmptyStock">—</div><div class="kpi-sub">latest month snapshot</div></div>
+      <div class="ops-kpi"><div class="kpi-label">Filled Floor Stock</div><div class="kpi-value" id="opsFilledStock">—</div><div class="kpi-sub">latest daily snapshot</div></div>
+      <div class="ops-kpi"><div class="kpi-label">Empty Cylinders</div><div class="kpi-value" id="opsEmptyStock">—</div><div class="kpi-sub">latest daily snapshot</div></div>
       <div class="ops-kpi"><div class="kpi-label">Reject / Decanting</div><div class="kpi-value" id="opsRejectDecant">—</div><div class="kpi-sub">selected period</div></div>
       <div class="ops-kpi"><div class="kpi-label">Co-fill Delivered</div><div class="kpi-value" id="opsCofillDelivered">—</div><div class="kpi-sub">kg received</div></div>
       <div class="ops-kpi"><div class="kpi-label">Co-fill &amp; Owner Stock</div><div class="kpi-value" id="opsCofillNet">—</div><div class="kpi-sub">current account balances</div></div>
@@ -982,7 +1017,7 @@
     <div class="ops-grid">
       <div class="panel"><div class="panel-head"><h3>TOTAL CYLINDERS REFILLED PER SKU</h3><span class="tag">pieces</span></div><div class="ops-chart-wrap"><canvas id="opsProductionChart"></canvas></div></div>
       <div class="panel"><div class="panel-head"><h3>FILLED FLOOR STOCK PER CYLINDER SIZE</h3><span class="tag">latest stock in selected period</span></div><div class="ops-chart-wrap"><canvas id="opsInventoryChart"></canvas></div></div>
-      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag" id="opsCofillTag">current stock by account</span></div><div class="cofill-chart-wrap"><canvas id="opsCofillChart"></canvas><div class="cofill-chart-center"><span id="opsCofillCenterLabel">Current Total Stock</span><strong id="opsCofillCenterValue">—</strong><small id="opsCofillCenterUnit">kg</small></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag" id="opsCofillTag">current stock by account</span></div><div class="donut-visual"><div class="cofill-chart-wrap"><canvas id="opsCofillChart"></canvas></div><div class="donut-side-list" id="opsCofillLegend"></div></div></div>
       <div class="panel"><div class="panel-head"><h3>TOP SALES — BRAND, SIZE &amp; CUSTOMER</h3><span class="tag">selected period · cylinders sold</span></div><div class="sales-breakdown-grid"><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Brands</div><div class="sales-mini-canvas"><canvas id="opsSalesBrandChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Cylinder Size</div><div class="sales-mini-canvas"><canvas id="opsSalesSkuChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Customers</div><div class="sales-mini-canvas"><canvas id="opsSalesCustomerChart"></canvas></div></div></div><div class="sales-leader-grid"><div class="sales-leader"><b id="opsTopBrand">—</b><span>Top brand</span></div><div class="sales-leader"><b id="opsTopSku">—</b><span>Top cylinder size</span></div><div class="sales-leader"><b id="opsTopCustomer">—</b><span>Top customer</span></div></div></div>
     </div>
 
@@ -1025,10 +1060,10 @@
     <div class="grid-2-equal">
       <div class="panel">
         <div class="panel-head">
-          <h3>PURCHASES BY MARKETER</h3>
-          <span class="tag">period total</span>
+          <h3>BULK PURCHASES BY MARKETER</h3>
+          <span class="tag" id="purchasePeriodTag">selected-period total</span>
         </div>
-        <canvas id="purchaseDonut"></canvas>
+        <div class="donut-visual"><div class="purchase-chart-wrap"><canvas id="purchaseDonut"></canvas></div><div class="donut-side-list" id="purchaseLegend"></div></div>
       </div>
       <div class="panel">
         <div class="panel-head">
@@ -1091,7 +1126,7 @@
     <div class="user-manager-head">
       <div>
         <h2 id="userManagerTitle">Admin User Management</h2>
-        <p>Review employee requests, assign role and department, then send a secure password-setup link.</p>
+        <p>Review employee requests, assign a system role, then send a secure password-setup link.</p>
       </div>
       <button class="action-btn user-manager-close" id="closeUserManagerBtn" type="button">✕ Close</button>
     </div>
@@ -1108,19 +1143,15 @@
       </div>
       <div>
         <label for="inviteRole">Access role</label>
-        <select id="inviteRole"><option value="assistant">Assistant</option><option value="operator">Operator</option><option value="supervisor">Supervisor</option><option value="analyst">Analyst</option></select>
-      </div>
-      <div>
-        <label for="inviteDepartment">Department</label>
-        <select id="inviteDepartment"><option value="operations">Operations</option><option value="logistics">Logistics</option><option value="inventory">Inventory</option><option value="production">Production</option><option value="accounting">Accounting</option></select>
+        <select id="inviteRole"><option value="ops_assistant">Ops Assistant</option><option value="accounting">Accounting</option><option value="analyst">Analyst</option><option value="supervisor">Supervisor</option><option value="manager">Manager</option></select>
       </div>
       <button class="action-btn primary" id="inviteUserBtn" type="submit">Send Setup Invite</button>
     </form>
     <div class="user-manager-status" id="userManagerStatus" role="status"></div>
     <div class="user-table-wrap">
       <table class="user-table">
-        <thead><tr><th>User / Company email</th><th>Role</th><th>Department</th><th>Status</th><th>Last sign-in</th><th>Action</th></tr></thead>
-        <tbody id="userManagementBody"><tr><td colspan="7">Loading users…</td></tr></tbody>
+        <thead><tr><th>User / Company email</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Action</th></tr></thead>
+        <tbody id="userManagementBody"><tr><td colspan="5">Loading users…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -1130,15 +1161,15 @@
   <section class="department-workspace" role="dialog" aria-modal="true" aria-labelledby="departmentWorkspaceTitle">
     <div class="user-manager-head">
       <div>
-        <h2 id="departmentWorkspaceTitle">Department Workspace</h2>
+        <h2 id="departmentWorkspaceTitle">Operations Workspace</h2>
         <p id="departmentWorkspaceSubtitle">Secure operational data entry</p>
       </div>
       <button class="action-btn user-manager-close" id="closeDepartmentWorkspaceBtn" type="button">✕ Close</button>
     </div>
     <div class="workspace-toolbar" id="workspaceAdminDepartmentWrap">
       <div>
-        <label for="workspaceDepartmentSelect">Department</label>
-        <select id="workspaceDepartmentSelect"><option value="operations">Operations</option><option value="logistics">Logistics</option><option value="inventory">Inventory</option><option value="production">Production</option><option value="accounting">Accounting</option></select>
+        <label for="workspaceDepartmentSelect">Data module</label>
+        <select id="workspaceDepartmentSelect"><option value="operations">Tank Readings</option><option value="logistics">Bulk Arrivals</option><option value="inventory">Cylinder Inventory</option><option value="production">Cylinder Production</option><option value="accounting">Accounting Records</option></select>
       </div>
     </div>
     <div class="workspace-permission-note" id="workspacePermissionNote"></div>
@@ -1154,6 +1185,23 @@
       <table class="user-table workspace-record-table">
         <thead id="departmentRecordsHead"></thead>
         <tbody id="departmentRecordsBody"><tr><td>Loading records…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="pending-uploads-overlay" id="pendingUploadsOverlay" aria-hidden="true">
+  <section class="pending-uploads" role="dialog" aria-modal="true" aria-labelledby="pendingUploadsTitle">
+    <div class="user-manager-head">
+      <div><h2 id="pendingUploadsTitle">Pending Excel Uploads</h2><p>Review validation results before approved data is published to the dashboard and official export.</p></div>
+      <button class="action-btn user-manager-close" id="closePendingUploadsBtn" type="button">✕ Close</button>
+    </div>
+    <div class="workspace-permission-note" id="pendingUploadPermissionNote">Uploader and approver actions are recorded in the audit trail.</div>
+    <div class="user-manager-status" id="pendingUploadsStatus" role="status"></div>
+    <div class="user-table-wrap">
+      <table class="user-table">
+        <thead><tr><th>File / uploader</th><th>Type</th><th>Rows</th><th>Status</th><th>Submitted</th><th>Action</th></tr></thead>
+        <tbody id="pendingUploadsBody"><tr><td colspan="6">Loading pending uploads…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -1192,7 +1240,10 @@
       <h3 class="settings-section-title">Admin tools</h3>
       <div class="settings-menu">
         <button class="settings-item" id="manageUsersBtn" type="button">
-          <span class="settings-item-icon">👥</span><span><span class="settings-item-main">Manage users &amp; requests</span><span class="settings-item-sub">Approvals, roles, departments and access</span></span><span class="settings-chevron">›</span>
+          <span class="settings-item-icon">👥</span><span><span class="settings-item-main">Manage users &amp; requests</span><span class="settings-item-sub">Approvals, roles and account access</span></span><span class="settings-chevron">›</span>
+        </button>
+        <button class="settings-item" id="settingsPendingUploadsBtn" type="button">
+          <span class="settings-item-icon">⇧</span><span><span class="settings-item-main">Pending Excel uploads</span><span class="settings-item-sub">Validate, approve, reject and publish imports</span></span><span class="settings-chevron">›</span>
         </button>
       </div>
     </section>
@@ -1220,7 +1271,7 @@
         </button>
       </div>
     </section>
-    <div class="settings-version">LPG Operations Management System · Version 2.2.1</div>
+    <div class="settings-version">LPG Operations Management System · Version 2.2.2</div>
   </aside>
 </div>
 
@@ -1232,7 +1283,7 @@ const DATA = {"records":[{"date":"2023-01-01","beginning_total":555000,"ending_t
 
 const COLORS = ['#34e29b','#22a5e0','#facc15','#f87171','#a78bfa','#fb923c','#38bdf8','#4ade80','#e879f9','#f472b6'];
 // Multi-color chart palette. Mint is reserved for controls, highlights, and active selections.
-const BAR_COLORS = ['#22a5e0','#facc15','#a78bfa','#fb923c','#38bdf8','#4ade80','#e879f9','#f472b6'];
+const BAR_COLORS = ['#1f6f8b'];
 const DEFAULT_ALLOWABLE_LOSS = 0.35;
 
 function fmt(n, decimals=0){
@@ -1299,6 +1350,7 @@ class Dashboard{
 
     this.dateFrom = this.raw[0].date;
     this.dateTo = this.raw[this.raw.length-1].date;
+    this.activeDatePreset = 'all';
 
     this.charts = this.charts || {};
     this.sortKey = 'date';
@@ -1307,13 +1359,16 @@ class Dashboard{
 
   init(){
     // one-time listeners (attached once; safe across data reloads)
-    document.getElementById('dateFrom').addEventListener('change', e=>{ this.dateFrom = e.target.value; this.render(); });
-    document.getElementById('dateTo').addEventListener('change', e=>{ this.dateTo = e.target.value; this.render(); });
+    document.getElementById('dateFrom').addEventListener('change', e=>{ this.setDateRange(e.target.value,this.dateTo,'custom'); });
+    document.getElementById('dateTo').addEventListener('change', e=>{ this.setDateRange(this.dateFrom,e.target.value,'custom'); });
+    document.getElementById('datePresetChips').addEventListener('click',event=>{
+      const button=event.target.closest('[data-date-preset]');
+      if(button) this.applyDatePreset(button.dataset.datePreset);
+    });
+    document.getElementById('yearSlicer').addEventListener('change',()=>this.applyMonthSlicer());
+    document.getElementById('monthSlicer').addEventListener('change',()=>this.applyMonthSlicer());
     document.getElementById('resetDates').addEventListener('click', ()=>{
-      this.dateFrom = this.raw[0].date; this.dateTo = this.raw[this.raw.length-1].date;
-      document.getElementById('dateFrom').value = this.dateFrom;
-      document.getElementById('dateTo').value = this.dateTo;
-      this.render();
+      this.setDateRange(this.raw[0].date,this.raw[this.raw.length-1].date,'all');
     });
 
     document.querySelectorAll('#dataTable thead th').forEach(th=>{
@@ -1332,7 +1387,7 @@ class Dashboard{
       if(Number.isFinite(value) && value >= 0 && value <= 0.50) this.renderLossVsAllowableChart(this.filtered);
     });
     document.getElementById('editAllowableLossBtn').addEventListener('click', () => {
-      requireAdminAuth('Sign in with a verified Supabase administrator account to change the allowable-loss target.', () => {
+      requireRole(['admin','manager'],'Administrator or Manager access is required to change the allowable-loss target.', () => {
         this.setAllowableLossAdminMode(true);
         document.getElementById('allowableLossInput').focus();
       });
@@ -1352,11 +1407,11 @@ class Dashboard{
     document.getElementById('fileUpload').addEventListener('change', e=>{
       const file = e.target.files && e.target.files[0];
       if(!file) return;
-      requireAdminAuth('Only an administrator can upload or synchronize data.', ()=>this.handleUnifiedUpload(file));
+      requireRole(['admin','supervisor','analyst','ops_assistant'],'Your role is not allowed to submit Excel data.', ()=>this.handleUnifiedUpload(file));
       e.target.value = '';
     });
     document.getElementById('uploadTriggerBtn').addEventListener('click', ()=>{
-      requireAdminAuth('Sign in with a Supabase administrator account to upload data.', ()=>{
+      requireRole(['admin','supervisor','analyst','ops_assistant'],'Your role is not allowed to submit Excel data.', ()=>{
         document.getElementById('fileUpload').click();
       });
     });
@@ -1368,10 +1423,10 @@ class Dashboard{
       });
     });
     document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
-      requireRole(['admin','analyst'], 'Excel export is available to Administrator and Analyst accounts.', ()=>this.exportExcel());
+      requireRole(['admin','manager','supervisor','analyst','ops_assistant','accounting'], 'Excel export is available to approved employee roles.', ()=>this.exportExcel());
     });
     document.getElementById('exportPdfBtn').addEventListener('click', ()=>{
-      requireRole(['admin','analyst'], 'PDF export is available to Administrator and Analyst accounts.', ()=>window.print());
+      requireRole(['admin','manager','supervisor','analyst','ops_assistant','accounting'], 'PDF export is available to approved employee roles.', ()=>window.print());
     });
 
     this.initFilters();
@@ -1422,11 +1477,66 @@ class Dashboard{
     document.getElementById('dateTo').min = this.raw[0].date;
     document.getElementById('dateTo').max = this.raw[this.raw.length-1].date;
 
+    this.populateTimelineControls();
+    this.syncTimelineControls();
+
     this.buildAccountChips();
     this.buildChips('sourceChips', this.sources, this.activeSources, ()=>this.render());
     this.buildChips('channelChips', this.channels, this.activeChannels, ()=>this.render());
 
     this.render();
+  }
+
+  setDateRange(from,to,preset='custom'){
+    const min=this.raw[0].date,max=this.raw[this.raw.length-1].date;
+    let nextFrom=from<min?min:(from>max?max:from);
+    let nextTo=to<min?min:(to>max?max:to);
+    if(nextFrom>nextTo) [nextFrom,nextTo]=[nextTo,nextFrom];
+    this.dateFrom=nextFrom;this.dateTo=nextTo;this.activeDatePreset=preset;
+    this.syncTimelineControls();this.render();
+  }
+
+  applyDatePreset(preset){
+    if(preset==='custom'){
+      this.activeDatePreset='custom';this.syncTimelineControls();
+      document.getElementById('dateFrom').focus();return;
+    }
+    const maxDate=new Date(this.raw[this.raw.length-1].date+'T00:00:00');
+    const isoDate=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    let from=new Date(maxDate),to=new Date(maxDate);
+    if(preset==='7d') from.setDate(from.getDate()-6);
+    else if(preset==='30d') from.setDate(from.getDate()-29);
+    else if(preset==='this-month') from=new Date(maxDate.getFullYear(),maxDate.getMonth(),1);
+    else if(preset==='last-month'){to=new Date(maxDate.getFullYear(),maxDate.getMonth(),0);from=new Date(to.getFullYear(),to.getMonth(),1);}
+    else if(preset==='ytd') from=new Date(maxDate.getFullYear(),0,1);
+    else if(preset==='all'){this.setDateRange(this.raw[0].date,this.raw[this.raw.length-1].date,'all');return;}
+    this.setDateRange(isoDate(from),isoDate(to),preset);
+  }
+
+  populateTimelineControls(){
+    const years=[...new Set(this.raw.map(row=>row.date.slice(0,4)))].sort();
+    const year=document.getElementById('yearSlicer'),month=document.getElementById('monthSlicer');
+    year.innerHTML=years.map(value=>`<option value="${value}">${value}</option>`).join('');
+    month.innerHTML=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((label,index)=>`<option value="${String(index+1).padStart(2,'0')}">${label}</option>`).join('');
+  }
+
+  applyMonthSlicer(){
+    const year=document.getElementById('yearSlicer').value,month=document.getElementById('monthSlicer').value;
+    if(!year||!month)return;
+    const start=`${year}-${month}-01`;
+    const last=new Date(Number(year),Number(month),0);
+    const end=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+    this.setDateRange(start,end,'month');
+  }
+
+  syncTimelineControls(){
+    document.getElementById('dateFrom').value=this.dateFrom;
+    document.getElementById('dateTo').value=this.dateTo;
+    document.getElementById('customDateRow').classList.toggle('show',this.activeDatePreset==='custom');
+    document.querySelectorAll('[data-date-preset]').forEach(button=>button.classList.toggle('active',button.dataset.datePreset===this.activeDatePreset));
+    document.getElementById('yearSlicer').value=this.dateTo.slice(0,4);
+    document.getElementById('monthSlicer').value=this.dateTo.slice(5,7);
+    document.getElementById('selectedPeriodLabel').textContent=`${fmtDateFull(this.dateFrom)} – ${fmtDateFull(this.dateTo)} · ${this.filtered.length} day${this.filtered.length===1?'':'s'}`;
   }
 
   toggleTheme(){
@@ -1490,27 +1600,12 @@ class Dashboard{
         return;
       }
 
-      const hasERPSheets = MASTER_DATA_SHEETS.some(cfg => wb.SheetNames.includes(cfg.sheetName));
-      const messages = [];
-
-      if(hasERPSheets){
-        this.setUploadStatus(`Reading "${file.name}"\u2026 syncing ERP sheets to Supabase.`, true);
-        const erpResult = await syncERPWorkbook(wb);
-        messages.push(erpResult);
-      }
-
-      // Try the simple dashboard template if this isn't a recognized ERP
-      // workbook, or if it explicitly also has a STORAGE READING sheet.
-      if(!hasERPSheets || wb.SheetNames.includes('STORAGE READING')){
-        const legacyResult = this.tryLegacyReportSync(wb, file);
-        if(legacyResult) messages.push(legacyResult);
-      }
-
-      if(messages.length === 0){
-        this.setUploadStatus(`"${file.name}" wasn't recognized as either the simple monthly report or the ERP workbook \u2014 no matching sheets found.`, false);
-        return;
-      }
-      this.setUploadStatus(messages.join(' | '), true);
+      this.setUploadStatus(`Validating "${file.name}" and preparing its Pending Review package…`, true);
+      try{
+        const result=await queueWorkbookForReview(wb,file,this);
+        this.setUploadStatus(result.message,true);
+        await refreshPendingUploadCount();
+      }catch(err){ this.setUploadStatus(err.message||'Unable to queue the workbook.',false); }
     };
     reader.onerror = () => this.setUploadStatus('Failed to read the file.', false);
     reader.readAsArrayBuffer(file);
@@ -1821,21 +1916,20 @@ class Dashboard{
   }
 
   renderOperationsMonitoring(){
-    const source=window.OPERATIONS_DATA;
-    if(!source?.months?.length) return;
-    const fromMonth=this.dateFrom.slice(0,7),toMonth=this.dateTo.slice(0,7);
-    const months=source.months.filter(m=>m.month>=fromMonth&&m.month<=toMonth);
-    if(!months.length) return;
-    const addMap=(key)=>months.reduce((acc,m)=>{Object.entries(m[key]||{}).forEach(([name,value])=>acc[name]=(acc[name]||0)+Number(value||0));return acc;},{});
+    const source=this.operationsData||window.OPERATIONS_DATA;
+    if(!source?.daily?.length)return;
+    const days=source.daily.filter(day=>day.date>=this.dateFrom&&day.date<=this.dateTo);
+    if(!days.length)return;
+    const addMap=key=>days.reduce((acc,day)=>{Object.entries(day[key]||{}).forEach(([name,value])=>acc[name]=(acc[name]||0)+Number(value||0));return acc;},{});
     const production=addMap('production'),brands=addMap('brands'),skus=addMap('skus'),customers=addMap('customers');
     const sumValues=obj=>Object.values(obj).reduce((sum,value)=>sum+Number(value||0),0);
-    const latest=months[months.length-1];
-    const rejects=months.reduce((s,m)=>s+Number(m.reject||0),0);
-    const decanting=months.reduce((s,m)=>s+Number(m.decanting||0),0);
+    const latest=days[days.length-1];
+    const rejects=days.reduce((sum,day)=>sum+Number(day.reject||0),0);
+    const decanting=days.reduce((sum,day)=>sum+Number(day.decanting||0),0);
     const cofill={};
     source.accounts.forEach(account=>cofill[account]={delivered:0,bulk:0,production:0,withdrawal:0,net:0});
-    months.forEach(m=>source.accounts.forEach(account=>{const row=m.cofill?.[account]||{};Object.keys(cofill[account]).forEach(k=>cofill[account][k]+=Number(row[k]||0));}));
-    const delivered=Object.values(cofill).reduce((s,r)=>s+r.delivered,0);
+    days.forEach(day=>source.accounts.forEach(account=>{const row=day.cofill?.[account]||{};Object.keys(cofill[account]).forEach(key=>cofill[account][key]+=Number(row[key]||0));}));
+    const delivered=Object.values(cofill).reduce((sum,row)=>sum+row.delivered,0);
     const currentStock=Number(this.filtered.at(-1)?.ending_total||0);
     document.getElementById('opsProductionTotal').textContent=fmt(sumValues(production));
     document.getElementById('opsFilledStock').textContent=fmt(latest.filled||0);
@@ -1849,71 +1943,33 @@ class Dashboard{
     document.getElementById('opsTopSku').textContent=`${topSku[0]} · ${fmt(topSku[1])}`;
     document.getElementById('opsTopCustomer').textContent=`${topCustomer[0]} · ${fmt(topCustomer[1])}`;
     const tc=this.themeColors();
-    ['opsProduction','opsInventory','opsCofill','opsSales','opsSalesBrand','opsSalesSku','opsSalesCustomer'].forEach(key=>{if(this.charts[key])this.charts[key].destroy();});
-    const baseOptions={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc.legend,font:{size:10},boxWidth:10}},tooltip:{backgroundColor:tc.tooltipBg,borderColor:tc.tooltipBorder,borderWidth:1,titleColor:tc.tooltipText,bodyColor:tc.tooltipText}},scales:{x:{ticks:{color:tc.tick,font:{size:9}},grid:{color:tc.grid}},y:{ticks:{color:tc.tick,font:{size:9},callback:v=>fmt(v)},grid:{color:tc.grid}}}};
-    const barValueLabels={id:'barValueLabels',afterDatasetsDraw(chart){
-      const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='700 9px Segoe UI, sans-serif';ctx.textBaseline='middle';
-      chart.data.datasets.forEach((dataset,di)=>chart.getDatasetMeta(di).data.forEach((bar,i)=>{ctx.textAlign='left';ctx.fillText(fmt(Number(dataset.data[i]||0)),bar.x+5,bar.y);}));ctx.restore();
-    }};
-    this.charts.opsProduction=new Chart(document.getElementById('opsProductionChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Refilled',data:source.skus.map(s=>production[s]||0),backgroundColor:source.skus.map((_,i)=>BAR_COLORS[i%BAR_COLORS.length]),borderRadius:5}]},options:{...baseOptions,plugins:{...baseOptions.plugins,legend:{display:false}}}});
+    ['opsProduction','opsInventory','opsCofill','opsSalesBrand','opsSalesSku','opsSalesCustomer'].forEach(key=>{if(this.charts[key])this.charts[key].destroy();});
+    const tooltip={backgroundColor:tc.tooltipBg,borderColor:tc.tooltipBorder,borderWidth:1,titleColor:tc.tooltipText,bodyColor:tc.tooltipText};
+    const horizontalLabels={id:'horizontalValueLabels',afterDatasetsDraw(chart){const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='600 9px Segoe UI, sans-serif';ctx.textBaseline='middle';chart.data.datasets.forEach((dataset,di)=>chart.getDatasetMeta(di).data.forEach((bar,index)=>{ctx.textAlign='left';ctx.fillText(fmt(Number(dataset.data[index]||0)),bar.x+5,bar.y);}));ctx.restore();}};
+    const verticalLabels={id:'verticalValueLabels',afterDatasetsDraw(chart){const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='600 9px Segoe UI, sans-serif';ctx.textBaseline='bottom';chart.data.datasets.forEach((dataset,di)=>chart.getDatasetMeta(di).data.forEach((bar,index)=>{ctx.textAlign='center';ctx.fillText(fmt(Number(dataset.data[index]||0)),bar.x,bar.y-5);}));ctx.restore();}};
+    const cleanVertical={responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip},scales:{x:{ticks:{color:tc.tick,font:{size:9}},border:{display:false},grid:{display:false}},y:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}}}};
+    this.charts.opsProduction=new Chart(document.getElementById('opsProductionChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Refilled',data:source.skus.map(sku=>production[sku]||0),backgroundColor:BAR_COLORS[0],borderRadius:5,barPercentage:.68}]},options:cleanVertical,plugins:[verticalLabels]});
+    const cleanHorizontal={responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:48}},plugins:{legend:{display:false},tooltip},scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:9}},border:{display:false},grid:{display:false}}}};
     const filledBySku=latest.filled_by_sku||{};
-    const cleanFilledOptions={responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:48}},plugins:{legend:{display:false},tooltip:baseOptions.plugins.tooltip},scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:9}},border:{display:false},grid:{display:false}}}};
-    this.charts.opsInventory=new Chart(document.getElementById('opsInventoryChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Filled floor stock',data:source.skus.map(s=>filledBySku[s]||0),backgroundColor:source.skus.map((_,i)=>BAR_COLORS[i%BAR_COLORS.length]),borderRadius:5,barPercentage:.72}]},options:cleanFilledOptions,plugins:[barValueLabels]});
+    this.charts.opsInventory=new Chart(document.getElementById('opsInventoryChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Filled floor stock',data:source.skus.map(sku=>filledBySku[sku]||0),backgroundColor:BAR_COLORS[0],borderRadius:5,barPercentage:.72}]},options:cleanHorizontal,plugins:[horizontalLabels]});
+
+    const balanceStart=`${this.dateTo.slice(0,7)}-01`;
+    const balanceDays=source.daily.filter(day=>day.date>=balanceStart&&day.date<=this.dateTo);
     const accountBalances={};
-    source.accounts.slice(0,3).forEach(account=>{
-      // Account balance is a current snapshot, so use the latest selected month.
-      // Summing monthly balances would overstate the amount still owned by a co-fill account.
-      accountBalances[account]=Math.max(0,Number(latest.cofill?.[account]?.net||0));
-    });
+    source.accounts.slice(0,3).forEach(account=>accountBalances[account]=Math.max(0,balanceDays.reduce((sum,day)=>sum+Number(day.cofill?.[account]?.net||0),0)));
     accountBalances['Account 4']=Math.max(0,currentStock-source.accounts.slice(0,3).reduce((sum,account)=>sum+accountBalances[account],0));
     const selectedAccount=this.activeAccount||'all';
-    const cofillLabels=source.accounts.map(cofillAccountLabel);
-    const cofillValues=source.accounts.map(account=>accountBalances[account]);
+    const cofillLabels=source.accounts.map(cofillAccountLabel),cofillValues=source.accounts.map(account=>accountBalances[account]);
     const cofillColors=['#34e29b','#22a5e0','#facc15','#a78bfa'];
-    document.getElementById('opsCofillTag').textContent=selectedAccount==='all'
-      ? 'Co-fill 1 + 2 + 3 + Owner = Total Stock'
-      : `${cofillAccountLabel(selectedAccount)} selected`;
-    const cofillOutsideLabels={id:'cofillOutsideLabels',afterDatasetsDraw(chart){
-      const {ctx}=chart,meta=chart.getDatasetMeta(0),dataset=chart.data.datasets[0];
-      if(!meta.data.length)return;
-      ctx.save();
-      meta.data.forEach((arc,index)=>{
-        const angle=(arc.startAngle+arc.endAngle)/2;
-        const direction=Math.cos(angle)>=0?1:-1;
-        const startX=arc.x+Math.cos(angle)*(arc.outerRadius+2);
-        const startY=arc.y+Math.sin(angle)*(arc.outerRadius+2);
-        const elbowX=arc.x+Math.cos(angle)*(arc.outerRadius+14);
-        const elbowY=arc.y+Math.sin(angle)*(arc.outerRadius+14);
-        const endX=elbowX+(direction*18);
-        ctx.strokeStyle=dataset.backgroundColor[index];ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(elbowX,elbowY);ctx.lineTo(endX,elbowY);ctx.stroke();
-        ctx.textAlign=direction>0?'left':'right';ctx.textBaseline='bottom';ctx.fillStyle=tc.legend;
-        ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText(chart.data.labels[index],endX+(direction*3),elbowY-1);
-        ctx.textBaseline='top';ctx.fillStyle=tc.accent;ctx.font='600 9px Segoe UI, sans-serif';
-        ctx.fillText(`${fmt(dataset.data[index])} kg`,endX+(direction*3),elbowY+2);
-      });
-      const center=meta.data[0];
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';
-      ctx.fillText('TOTAL ACCOUNT',center.x,center.y-17);
-      ctx.fillStyle=tc.tooltipText;ctx.font='700 19px Segoe UI, sans-serif';ctx.fillText(fmt(currentStock),center.x,center.y+2);
-      ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText('kg',center.x,center.y+19);
-      ctx.restore();
-    }};
-    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{
-      type:'doughnut',
-      data:{labels:cofillLabels,datasets:[{data:cofillValues,backgroundColor:cofillColors,borderColor:tc.cardBg,borderWidth:3,hoverOffset:5,offset:context=>selectedAccount==='all'||source.accounts[context.dataIndex]===selectedAccount?5:0}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'64%',layout:{padding:{top:32,right:72,bottom:32,left:72}},plugins:{legend:{display:false},tooltip:{backgroundColor:tc.tooltipBg,borderColor:tc.tooltipBorder,borderWidth:1,titleColor:tc.tooltipText,bodyColor:tc.tooltipText,callbacks:{label:context=>`${context.label}: ${fmtFull(context.raw)} kg`}}}},
-      plugins:[cofillOutsideLabels]
-    });
-    const salesValueLabels={id:'salesValueLabels',afterDatasetsDraw(chart){
-      const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='700 9px Segoe UI, sans-serif';ctx.textBaseline='middle';
-      chart.data.datasets.forEach((dataset,di)=>{const meta=chart.getDatasetMeta(di);if(meta.hidden)return;meta.data.forEach((bar,i)=>{const value=Number(dataset.data[i]||0);ctx.textAlign='left';ctx.fillText(fmt(value),bar.x+5,bar.y);});});ctx.restore();
-    }};
-    const cleanSalesOptions={responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:45}},plugins:{legend:{display:false},tooltip:baseOptions.plugins.tooltip},scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:8.5}},border:{display:false},grid:{display:false}}}};
-    const salesChart=(id,entries)=>new Chart(document.getElementById(id),{type:'bar',data:{labels:entries.map(x=>x[0]),datasets:[{label:'Qty sold',data:entries.map(x=>x[1]),backgroundColor:entries.map((_,i)=>BAR_COLORS[i%BAR_COLORS.length]),borderRadius:5,barPercentage:.72,categoryPercentage:.82}]},options:cleanSalesOptions,plugins:[salesValueLabels]});
-    const rankedBrands=Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const rankedSkus=Object.entries(skus).sort((a,b)=>b[1]-a[1]);
-    const rankedCustomers=Object.entries(customers).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const displayColors=cofillColors.map((color,index)=>selectedAccount==='all'||source.accounts[index]===selectedAccount?color:`${color}40`);
+    document.getElementById('opsCofillTag').textContent=selectedAccount==='all'?'Co-fill 1 + 2 + 3 + Owner = Total Stock':`${cofillAccountLabel(selectedAccount)} highlighted`;
+    document.getElementById('opsCofillLegend').innerHTML=source.accounts.map((account,index)=>{const value=cofillValues[index],pct=currentStock?value/currentStock*100:0;return `<div class="donut-side-row" style="opacity:${selectedAccount==='all'||account===selectedAccount?1:.45}"><span class="donut-swatch" style="background:${cofillColors[index]};color:${cofillColors[index]}"></span><span class="donut-account">${escapeHtml(cofillAccountLabel(account))}</span><span class="donut-value">${fmt(value)} kg<small>${pct.toFixed(1)}%</small></span></div>`;}).join('');
+    const centerLabel={id:'cofillCenterLabel',afterDraw(chart){const meta=chart.getDatasetMeta(0);if(!meta.data.length)return;const {ctx}=chart,center=meta.data[0];ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText('TOTAL ACCOUNT',center.x,center.y-16);ctx.fillStyle=tc.tooltipText;ctx.font='700 18px Segoe UI, sans-serif';ctx.fillText(fmt(currentStock),center.x,center.y+2);ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText('kg',center.x,center.y+18);ctx.restore();}};
+    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{type:'doughnut',data:{labels:cofillLabels,datasets:[{data:cofillValues,backgroundColor:displayColors,borderColor:tc.cardBg,borderWidth:3,hoverOffset:5,offset:context=>selectedAccount!=='all'&&source.accounts[context.dataIndex]===selectedAccount?7:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'64%',plugins:{legend:{display:false},tooltip:{...tooltip,callbacks:{label:context=>`${context.label}: ${fmtFull(context.raw)} kg`}}}},plugins:[centerLabel]});
+
+    const cleanSales={...cleanHorizontal,scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:8.5}},border:{display:false},grid:{display:false}}}};
+    const salesChart=(id,entries)=>new Chart(document.getElementById(id),{type:'bar',data:{labels:entries.map(entry=>entry[0]),datasets:[{label:'Qty sold',data:entries.map(entry=>entry[1]),backgroundColor:BAR_COLORS[0],borderRadius:5,barPercentage:.72,categoryPercentage:.82}]},options:cleanSales,plugins:[horizontalLabels]});
+    const rankedBrands=Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,5),rankedSkus=Object.entries(skus).sort((a,b)=>b[1]-a[1]),rankedCustomers=Object.entries(customers).sort((a,b)=>b[1]-a[1]).slice(0,5);
     this.charts.opsSalesBrand=salesChart('opsSalesBrandChart',rankedBrands);
     this.charts.opsSalesSku=salesChart('opsSalesSkuChart',rankedSkus);
     this.charts.opsSalesCustomer=salesChart('opsSalesCustomerChart',rankedCustomers);
@@ -2006,8 +2062,8 @@ class Dashboard{
           }
         },
         scales:{
-          x:{ ticks:{ color:tc.tick, font:{size:9}, autoSkip:false, maxRotation:45, minRotation:0 }, grid:{ color:tc.grid } },
-          y:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, grid:{ color:tc.grid } }
+          x:{ ticks:{ color:tc.tick, font:{size:9}, autoSkip:false, maxRotation:45, minRotation:0 }, border:{display:false}, grid:{ display:false } },
+          y:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, border:{display:false}, grid:{ display:false } }
         }
       }
     });
@@ -2018,16 +2074,21 @@ class Dashboard{
     const tc = this.themeColors();
     const sources = [...this.activeSources];
     const totals = sources.map(s => rows.reduce((sum,r)=>sum+(r.purchases[s]||0),0));
+    const total=totals.reduce((a,b)=>a+b,0);
+    const donutColors=['#34e29b','#22a5e0','#facc15','#a78bfa'];
+    document.getElementById('purchasePeriodTag').textContent=rows.length===1?new Date(rows[0].date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):`${rows.length} selected days`;
+    document.getElementById('purchaseLegend').innerHTML=sources.map((source,index)=>`<div class="donut-side-row"><span class="donut-swatch" style="background:${donutColors[index%donutColors.length]};color:${donutColors[index%donutColors.length]}"></span><span class="donut-account">${escapeHtml(source)}</span><span class="donut-value">${fmt(totals[index])} kg<small>${total?(totals[index]/total*100).toFixed(1):'0.0'}%</small></span></div>`).join('');
+    const centerLabel={id:'purchaseCenterLabel',afterDraw(chart){const meta=chart.getDatasetMeta(0);if(!meta.data.length)return;const {ctx}=chart,center=meta.data[0];ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=tc.legend;ctx.font='400 9px Segoe UI, sans-serif';ctx.fillText('TOTAL BULK',center.x,center.y-13);ctx.fillStyle=tc.tooltipText;ctx.font='700 17px Segoe UI, sans-serif';ctx.fillText(fmt(total),center.x,center.y+4);ctx.fillStyle=tc.legend;ctx.font='400 9px Segoe UI, sans-serif';ctx.fillText('kg',center.x,center.y+19);ctx.restore();}};
     if(this.charts.donut) this.charts.donut.destroy();
     this.charts.donut = new Chart(ctx, {
       type:'doughnut',
-      data:{ labels: sources, datasets:[{ data: totals, backgroundColor: sources.map((_,i)=>COLORS[i%COLORS.length]), borderColor:tc.cardBg, borderWidth:3 }]},
+      data:{ labels: sources, datasets:[{ data: totals, backgroundColor: sources.map((_,i)=>donutColors[i%donutColors.length]), borderColor:tc.cardBg, borderWidth:3 }]},
       options:{
-        responsive:true, maintainAspectRatio:true, cutout:'62%',
-        plugins:{ legend:{ position:'bottom', labels:{ color:tc.legend, font:{size:11}, boxWidth:10, padding:10 } },
+        responsive:true, maintainAspectRatio:false, cutout:'64%',
+        plugins:{ legend:{ display:false },
           tooltip:{ backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText,
-            callbacks:{ label: ctx => `${ctx.label}: ${fmtFull(ctx.raw)} (${(ctx.raw/totals.reduce((a,b)=>a+b,0)*100).toFixed(1)}%)` } } }
-      }
+            callbacks:{ label: ctx => `${ctx.label}: ${fmtFull(ctx.raw)} (${total?(ctx.raw/total*100).toFixed(1):'0.0'}%)` } } }
+      },plugins:[centerLabel]
     });
   }
 
@@ -2036,19 +2097,20 @@ class Dashboard{
     const tc = this.themeColors();
     const channels = [...this.activeChannels]; // Backload already excluded upstream in loadData()
     const totals = channels.map(c => rows.reduce((sum,r)=>sum+(r.withdrawals[c]||0),0));
+    const valueLabels={id:'withdrawalValueLabels',afterDatasetsDraw(chart){const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='600 10px Segoe UI, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';chart.getDatasetMeta(0).data.forEach((bar,index)=>ctx.fillText(fmt(totals[index]),bar.x+5,bar.y));ctx.restore();}};
     if(this.charts.wbar) this.charts.wbar.destroy();
     this.charts.wbar = new Chart(ctx, {
       type:'bar',
-      data:{ labels: channels, datasets:[{ data: totals, backgroundColor:channels.map((_,i)=>BAR_COLORS[i%BAR_COLORS.length]), borderRadius:6, maxBarThickness:34 }]},
+      data:{ labels: channels, datasets:[{ data: totals, backgroundColor:BAR_COLORS[0], borderRadius:6, maxBarThickness:34 }]},
       options:{
         indexAxis:'y', responsive:true, maintainAspectRatio:true,
         plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:tc.tooltipBg, borderColor:tc.tooltipBorder, borderWidth:1, titleColor:tc.tooltipText, bodyColor:tc.tooltipText,
           callbacks:{ label: ctx => fmtFull(ctx.raw) } } },
         scales:{
-          x:{ ticks:{ color:tc.tick, font:{size:10}, callback:v=>fmt(v) }, grid:{ color:tc.grid } },
-          y:{ ticks:{ color:tc.legend, font:{size:11} }, grid:{ display:false } }
+          x:{ ticks:{ display:false }, border:{display:false}, grid:{ display:false } },
+          y:{ ticks:{ color:tc.legend, font:{size:11} }, border:{display:false}, grid:{ display:false } }
         }
-      }
+      },plugins:[valueLabels]
     });
   }
 
@@ -2193,7 +2255,7 @@ class Dashboard{
 // Supabase Auth proves identity; public.profiles supplies the protected role.
 // RLS remains authoritative even if somebody edits this browser interface.
 // ---------------------------------------------------------------------------
-const AUTHORIZED_ROLES = new Set(['admin','analyst','supervisor','operator','assistant','viewer']);
+const AUTHORIZED_ROLES = new Set(['admin','manager','supervisor','analyst','ops_assistant','accounting','viewer']);
 let currentAuth = { user:null, role:null, fullName:null, department:null, accessMode:null };
 let toastTimer = null;
 let passwordChangeFromDashboard = false;
@@ -2291,6 +2353,10 @@ function setAuthView(name){
   ['Loading','Login','Employee','Register','Forgot','Reset'].forEach(view => {
     document.getElementById('authView' + view).classList.toggle('hidden', view.toLowerCase() !== name);
   });
+  const formArea=document.querySelector('.auth-form-area');
+  if(formArea){ formArea.classList.toggle('employee-view',name==='employee'); formArea.scrollTop=0; }
+  const gate=document.getElementById('authGate');
+  if(gate) gate.scrollTop=0;
 }
 
 function setAuthStatus(id, message='', ok=false){
@@ -2370,23 +2436,26 @@ function updateCloudUI(auth){
   document.getElementById('sessionUserEmail').textContent = email;
   document.getElementById('settingsProfileName').textContent = fullName;
   document.getElementById('settingsAvatar').textContent = initials;
-  const department = auth?.department && auth.department !== 'all' ? auth.department : 'All departments';
-  document.getElementById('settingsProfileScope').textContent = `Role: ${role} · ${department}`;
+  document.getElementById('settingsProfileScope').textContent = `Role: ${role.replace('_',' ')}`;
 }
 
 function applyRolePermissions(auth){
   const isAdmin = auth.role === 'admin';
-  const canExport = isAdmin || auth.role === 'analyst';
-  const canUseDepartmentWorkspace = ['admin','supervisor','operator','assistant'].includes(auth.role);
+  const canExport = ['admin','manager','supervisor','analyst','ops_assistant','accounting'].includes(auth.role);
+  const canUpload = ['admin','supervisor','analyst','ops_assistant'].includes(auth.role);
+  const canReviewUploads = ['admin','manager','supervisor','analyst'].includes(auth.role);
+  const canUseDepartmentWorkspace = ['admin','manager','analyst'].includes(auth.role);
   const isDemo = auth.role === 'viewer' && auth.accessMode === 'demo';
-  document.getElementById('uploadAccessBox').dataset.roleHidden = String(!isAdmin);
+  document.getElementById('uploadAccessBox').dataset.roleHidden = String(!canUpload);
   document.getElementById('exportAccessBox').dataset.roleHidden = String(!canExport);
+  document.getElementById('pendingUploadsAccessBox').dataset.roleHidden = String(!canReviewUploads);
   document.getElementById('manageUsersBtn').dataset.roleHidden = String(!isAdmin);
-  document.getElementById('settingsAdminSection').dataset.roleHidden = String(!isAdmin);
+  document.getElementById('settingsPendingUploadsBtn').dataset.roleHidden = String(!canReviewUploads);
+  document.getElementById('settingsAdminSection').dataset.roleHidden = String(!(isAdmin||canReviewUploads));
   document.getElementById('departmentWorkspaceBox').classList.toggle('show', canUseDepartmentWorkspace);
   document.getElementById('departmentWorkspaceScope').textContent = isAdmin
-    ? 'All departments · administrator control'
-    : `${auth.department || 'Unassigned'} · ${auth.role} permissions`;
+    ? 'All operational modules · administrator control'
+    : `${auth.role.replace('_',' ')} · controlled operational access`;
   document.getElementById('demoModeBanner').classList.toggle('show', isDemo);
   document.getElementById('demoControlsBox').classList.toggle('show', isDemo);
   if(isDemo){
@@ -2397,10 +2466,11 @@ function applyRolePermissions(auth){
     dashboard.setAllowableLossStatus('Interactive demo · target changes are temporary and are not saved', true);
     scheduleDemoReset();
   }else{
-    dashboard.setAllowableLossAdminMode(isAdmin);
+    dashboard.setAllowableLossAdminMode(isAdmin || auth.role === 'manager');
     clearTimeout(demoResetTimer);
   }
   updateCloudUI(auth);
+  if(canReviewUploads) refreshPendingUploadCount();
 }
 
 function cloneEmbeddedData(){
@@ -2480,7 +2550,7 @@ function formatUserDate(value){
 
 function renderManagedUsers(users){
   const body = document.getElementById('userManagementBody');
-  if(!users.length){ body.innerHTML = '<tr><td colspan="6">No users found.</td></tr>'; return; }
+  if(!users.length){ body.innerHTML = '<tr><td colspan="5">No users found.</td></tr>'; return; }
   body.innerHTML = users.map(user => {
     const isRequest = user.account_type === 'request';
     const protectedAdmin = user.role === 'admin';
@@ -2490,16 +2560,12 @@ function renderManagedUsers(users){
     const roleControl = !editable
       ? `<span class="role-badge">${escapeHtml(user.role)}</span>`
       : `<select class="user-role-select" ${isRequest ? `data-request-role="${escapeHtml(user.request_id)}"` : `data-user-role="${escapeHtml(user.id)}"`}>
-          <option value="assistant" ${user.role === 'assistant' ? 'selected' : ''}>Assistant</option>
-          <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>Operator</option>
+          <option value="ops_assistant" ${user.role === 'ops_assistant' ? 'selected' : ''}>Ops Assistant</option>
+          <option value="accounting" ${user.role === 'accounting' ? 'selected' : ''}>Accounting</option>
           <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>Supervisor</option>
           <option value="analyst" ${user.role === 'analyst' ? 'selected' : ''}>Analyst</option>
+          <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Manager</option>
         </select>`;
-    const departmentControl = editable
-      ? `<select class="user-role-select" ${isRequest ? `data-request-department="${escapeHtml(user.request_id)}"` : `data-user-department="${escapeHtml(user.id)}"`} ${user.role === 'analyst' ? 'disabled' : ''}>
-          ${['operations','logistics','inventory','production','accounting'].map(dep=>`<option value="${dep}" ${user.department === dep ? 'selected' : ''}>${dep[0].toUpperCase()+dep.slice(1)}</option>`).join('')}
-        </select>`
-      : escapeHtml(user.department === 'all' ? 'All / Demo' : user.department);
     const isPending = user.approval_status === 'pending' || isRequest;
     const statusClass = user.is_active ? 'active' : (isPending ? 'pending' : 'disabled');
     const statusText = user.is_active ? '● Active' : (isRequest ? '● Awaiting admin review' : (isPending ? '● Pending approval' : '● Disabled'));
@@ -2517,7 +2583,6 @@ function renderManagedUsers(users){
     return `<tr>
       <td><div class="user-name">${escapeHtml(user.full_name || 'Unnamed user')}</div><div class="user-email">${escapeHtml(user.email)}</div></td>
       <td>${roleControl}</td>
-      <td>${departmentControl}</td>
       <td><span class="status-pill ${statusClass}">${statusText}</span></td>
       <td>${escapeHtml(formatUserDate(user.last_sign_in_at))}</td>
       <td>${action}</td>
@@ -2526,14 +2591,14 @@ function renderManagedUsers(users){
 }
 
 async function loadManagedUsers(){
-  document.getElementById('userManagementBody').innerHTML = '<tr><td colspan="6">Loading users…</td></tr>';
+  document.getElementById('userManagementBody').innerHTML = '<tr><td colspan="5">Loading users…</td></tr>';
   setUserManagerStatus('Loading protected user list…', true);
   try{
     const data = await invokeUserManagement({ action:'list' });
     renderManagedUsers(data.users || []);
     setUserManagerStatus(`${(data.users || []).length} account(s) loaded.`, true);
   }catch(err){
-    document.getElementById('userManagementBody').innerHTML = '<tr><td colspan="6">Unable to load users.</td></tr>';
+    document.getElementById('userManagementBody').innerHTML = '<tr><td colspan="5">Unable to load users.</td></tr>';
     setUserManagerStatus(err.message || 'Unable to load users.', false);
   }
 }
@@ -2560,11 +2625,10 @@ async function submitUserInvite(event){
   const fullName = document.getElementById('inviteFullName').value.trim();
   const email = document.getElementById('inviteEmail').value.trim();
   const role = document.getElementById('inviteRole').value;
-  const department = role === 'analyst' ? 'all' : document.getElementById('inviteDepartment').value;
   if(fullName.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setUserManagerStatus('Enter the full name and valid company email.', false); return; }
   button.disabled = true; button.textContent = 'Sending…';
   try{
-    const data = await invokeUserManagement({ action:'invite', full_name:fullName, email, role, department });
+    const data = await invokeUserManagement({ action:'invite', full_name:fullName, email, role });
     document.getElementById('inviteUserForm').reset();
     setUserManagerStatus(data.message || 'Invitation sent.', true);
     await loadManagedUsers();
@@ -2574,15 +2638,12 @@ async function submitUserInvite(event){
 
 async function changeManagedUserProfile(userId){
   const roleEl = document.querySelector(`[data-user-role="${CSS.escape(userId)}"]`);
-  const departmentEl = document.querySelector(`[data-user-department="${CSS.escape(userId)}"]`);
   if(!roleEl) return;
   const role = roleEl.value;
-  const department = role === 'analyst' ? 'all' : (departmentEl?.value || 'operations');
-  if(departmentEl) departmentEl.disabled = role === 'analyst';
-  setUserManagerStatus('Updating role and department scope…', true);
+  setUserManagerStatus('Updating system role…', true);
   try{
-    const data = await invokeUserManagement({ action:'update_profile', user_id:userId, role, department });
-    setUserManagerStatus(data.message || 'Role and scope updated.', true);
+    const data = await invokeUserManagement({ action:'update_profile', user_id:userId, role });
+    setUserManagerStatus(data.message || 'Role updated.', true);
     await loadManagedUsers();
   }catch(err){ setUserManagerStatus(err.message || 'Profile update failed.', false); await loadManagedUsers(); }
 }
@@ -2597,12 +2658,10 @@ async function changeManagedUserStatus(userId, isActive){
 }
 
 async function approveEmployeeRequest(requestId, fullName){
-  const role = document.querySelector(`[data-request-role="${CSS.escape(requestId)}"]`)?.value || 'assistant';
-  const departmentEl = document.querySelector(`[data-request-department="${CSS.escape(requestId)}"]`);
-  const department = role === 'analyst' ? 'all' : (departmentEl?.value || 'operations');
+  const role = document.querySelector(`[data-request-role="${CSS.escape(requestId)}"]`)?.value || 'ops_assistant';
   setUserManagerStatus('Approving request and sending the secure password-setup link…', true);
   try{
-    const data = await invokeUserManagement({action:'approve_request',request_id:requestId,full_name:fullName,role,department});
+    const data = await invokeUserManagement({action:'approve_request',request_id:requestId,full_name:fullName,role});
     setUserManagerStatus(data.message || 'Request approved and setup link sent.', true);
     await loadManagedUsers();
   }catch(err){ setUserManagerStatus(err.message || 'Approval failed.', false); }
@@ -2687,10 +2746,9 @@ function setDepartmentWorkspaceStatus(message='',ok=true){
   el.textContent=message; el.className='user-manager-status '+(message?(ok?'ok':'err'):'');
 }
 function departmentPermissionText(){
-  if(currentAuth.role==='admin') return 'Administrator: may add and edit records in any department. Record deletion is disabled.';
-  if(currentAuth.role==='supervisor') return 'Supervisor: may add and edit records within the assigned department. Record deletion is disabled.';
-  if(currentAuth.role==='operator') return 'Operator: may add records and edit only entries created by this account.';
-  return 'Assistant: may add and edit only this account’s entries created today.';
+  if(currentAuth.role==='admin') return 'Administrator: may add and edit records in every operational module. Record deletion is disabled.';
+  if(currentAuth.role==='manager') return 'Manager: may review all operational modules. Submit proposed changes through Pending Review.';
+  return 'Analyst: may review records here. Proposed data changes require Administrator approval.';
 }
 function renderDepartmentEntryForm(department,record=null){
   const config=DEPARTMENT_ENTRY_CONFIG[department];
@@ -2726,9 +2784,7 @@ function renderDepartmentRecords(records){
   if(!records.length){ body.innerHTML=`<tr><td colspan="${fields.length+1}">No department records found.</td></tr>`; return; }
   const today=new Date().toISOString().slice(0,10);
   body.innerHTML=records.map((record,index)=>{
-    const canEdit=['admin','supervisor'].includes(currentAuth.role)
-      || (currentAuth.role==='operator' && record.uploaded_by===currentAuth.user?.id)
-      || (currentAuth.role==='assistant' && record.uploaded_by===currentAuth.user?.id && String(record.created_at||'').slice(0,10)===today);
+    const canEdit=currentAuth.role==='admin';
     const action=canEdit?`<button class="action-btn workspace-edit-btn" type="button" data-workspace-edit="${index}">Edit</button>`:'<span class="current-user-note">View only</span>';
     return `<tr>${fields.map(field=>`<td>${escapeHtml(record[field.name] ?? '—')}</td>`).join('')}<td>${action}</td></tr>`;
   }).join('');
@@ -2742,12 +2798,13 @@ async function loadDepartmentRecords(){
   }catch(err){ document.getElementById('departmentRecordsBody').innerHTML='<tr><td>Unable to load records.</td></tr>'; setDepartmentWorkspaceStatus(err.message,false); }
 }
 async function openDepartmentWorkspace(){
-  const permitted=['admin','supervisor','operator','assistant'].includes(currentAuth.role);
+  const permitted=['admin','manager','analyst'].includes(currentAuth.role);
   if(!permitted){ showToast('Your role has no operational data-entry permission.',false); return; }
   const select=document.getElementById('workspaceDepartmentSelect');
-  workspaceDepartment=currentAuth.role==='admin'?(select.value||'operations'):currentAuth.department;
+  workspaceDepartment=select.value||'operations';
   select.value=workspaceDepartment;
-  document.getElementById('workspaceAdminDepartmentWrap').style.display=currentAuth.role==='admin'?'flex':'none';
+  document.getElementById('workspaceAdminDepartmentWrap').style.display='flex';
+  document.getElementById('saveDepartmentEntryBtn').style.display=currentAuth.role==='admin'?'':'none';
   renderDepartmentEntryForm(workspaceDepartment);
   const overlay=document.getElementById('departmentWorkspaceOverlay');
   overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false');
@@ -2811,8 +2868,8 @@ async function loadAllowableLossSetting(){
   }
   if(data && dashboard.applySavedAllowableLoss(data.numeric_value)){
     const auth = await getVerifiedCurrentUser();
-    dashboard.setAllowableLossAdminMode(Boolean(auth.user && auth.role === 'admin'));
-    if(!(auth.user && auth.role === 'admin')){
+    dashboard.setAllowableLossAdminMode(Boolean(auth.user && ['admin','manager'].includes(auth.role)));
+    if(!(auth.user && ['admin','manager'].includes(auth.role))){
       dashboard.setAllowableLossStatus('Read-only · official target loaded from protected settings', true);
     }
   }
@@ -2829,9 +2886,9 @@ async function saveAllowableLossSetting(){
   }
 
   const auth = await getVerifiedCurrentUser();
-  if(!auth.user || auth.role !== 'admin'){
+  if(!auth.user || !['admin','manager'].includes(auth.role)){
     dashboard.setAllowableLossAdminMode(false);
-    requireAdminAuth('Your administrator session is required to save the allowable-loss target.', () => dashboard.setAllowableLossAdminMode(true));
+    requireRole(['admin','manager'],'Administrator or Manager access is required to save the allowable-loss target.', () => dashboard.setAllowableLossAdminMode(true));
     return;
   }
 
@@ -2884,6 +2941,29 @@ function buildAggregatesFromRecords(records){
   };
 }
 
+async function fetchAllRows(table,columns){
+  const client=getSupabaseClient(),all=[];let from=0;
+  while(true){const {data,error}=await client.from(table).select(columns).range(from,from+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000)break;from+=1000;}
+  return all;
+}
+async function loadOperationsFromCloud(){
+  const base=window.OPERATIONS_DATA;if(!base?.daily)return false;
+  const [prod,filled,empty,rejects,defective,sales,cofill]=await Promise.all([
+    fetchAllRows('cylinder_production','production_date,brand,sku,units_produced'),fetchAllRows('filled_cylinder_inventory','inv_date,sku,beginning_filled,produced,sold_dispatched'),fetchAllRows('empty_cylinder_inventory','inv_date,sku,beginning_empty,received_empty,issued_to_filling'),fetchAllRows('reject_monitoring','reject_date,units_rejected'),fetchAllRows('defective_cylinder_inventory','def_date,units,status'),fetchAllRows('daily_sales','sale_date,customer,brand,sku,qty'),fetchAllRows('cofill_monitoring','monitor_date,account,delivered_kg,bulk_withdrawal_kg,production_withdrawal_kg,total_withdrawal_kg,net_stock_kg')
+  ]);
+  if(![prod,filled,empty,rejects,defective,sales,cofill].some(rows=>rows.length))return false;
+  const map=new Map(),ensure=date=>{if(!map.has(date))map.set(date,{date,production:{},brands:{},skus:{},customers:{},filled:0,empty:0,reject:0,decanting:0,filled_by_sku:{},empty_by_sku:{},cofill:{}});return map.get(date);};
+  prod.forEach(r=>{const d=ensure(r.production_date),n=Number(r.units_produced||0);d.production[r.sku]=(d.production[r.sku]||0)+n;});
+  filled.forEach(r=>{const d=ensure(r.inv_date),n=Number(r.beginning_filled||0)+Number(r.produced||0)-Number(r.sold_dispatched||0);d.filled+=n;d.filled_by_sku[r.sku]=(d.filled_by_sku[r.sku]||0)+n;});
+  empty.forEach(r=>{const d=ensure(r.inv_date),n=Number(r.beginning_empty||0)+Number(r.received_empty||0)-Number(r.issued_to_filling||0);d.empty+=n;d.empty_by_sku[r.sku]=(d.empty_by_sku[r.sku]||0)+n;});
+  rejects.forEach(r=>ensure(r.reject_date).reject+=Number(r.units_rejected||0));
+  defective.forEach(r=>{if(String(r.status||'').toLowerCase().includes('decant'))ensure(r.def_date).decanting+=Number(r.units||0);});
+  sales.forEach(r=>{const d=ensure(r.sale_date),n=Number(r.qty||0);d.brands[r.brand]=(d.brands[r.brand]||0)+n;d.skus[r.sku]=(d.skus[r.sku]||0)+n;d.customers[r.customer]=(d.customers[r.customer]||0)+n;});
+  cofill.forEach(r=>{const d=ensure(r.monitor_date),raw=String(r.account||''),match=raw.match(/(\d+)/),account=match?`Account ${match[1]}`:raw;d.cofill[account]={delivered:Number(r.delivered_kg||0),bulk:Number(r.bulk_withdrawal_kg||0),production:Number(r.production_withdrawal_kg||0),withdrawal:Number(r.total_withdrawal_kg||0),net:Number(r.net_stock_kg||0)};});
+  const observed=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));const merged=new Map(base.daily.map(day=>[day.date,day]));observed.forEach(day=>merged.set(day.date,{...(merged.get(day.date)||{}),...day}));
+  dashboard.operationsData={...base,daily:[...merged.values()].sort((a,b)=>a.date.localeCompare(b.date))};return true;
+}
+
 async function syncFromCloud(){
   const client = getSupabaseClient();
   if(!client) return;
@@ -2894,7 +2974,8 @@ async function syncFromCloud(){
     .order('report_date', { ascending: true });
 
   if(error){ setCloudStatus('Sync failed: ' + error.message, false); return; }
-  if(!data || data.length === 0){ setCloudStatus('Connected — no cloud reports found yet. Upload a report to populate it.', true); return; }
+  try{await loadOperationsFromCloud();}catch(err){console.warn('Operational cloud sync unavailable:',err);}
+  if(!data || data.length === 0){ dashboard.render();setCloudStatus('Connected — operational charts ready; no cloud storage reports found yet.', true); return; }
 
   const records = data.map(r => ({
     date: r.report_date,
@@ -3231,24 +3312,18 @@ document.getElementById('manageUsersBtn').addEventListener('click', ()=>{
   closeSettings();
   openUserManager().catch(err => showToast(err.message || 'Unable to open user management.', false));
 });
+['openPendingUploadsBtn','settingsPendingUploadsBtn'].forEach(id=>document.getElementById(id).addEventListener('click',()=>{closeSettings();openPendingUploads().catch(err=>showToast(err.message||'Unable to open review queue.',false));}));
+document.getElementById('closePendingUploadsBtn').addEventListener('click',closePendingUploads);
+document.getElementById('pendingUploadsOverlay').addEventListener('click',event=>{if(event.target.id==='pendingUploadsOverlay')closePendingUploads();});
+document.getElementById('pendingUploadsBody').addEventListener('click',event=>{const approve=event.target.closest('[data-import-approve]');if(approve)reviewPendingUpload(approve.dataset.importApprove,'approve');const reject=event.target.closest('[data-import-reject]');if(reject)reviewPendingUpload(reject.dataset.importReject,'reject');});
 document.getElementById('closeUserManagerBtn').addEventListener('click', closeUserManager);
 document.getElementById('userManagerOverlay').addEventListener('click', event => {
   if(event.target.id === 'userManagerOverlay') closeUserManager();
 });
 document.getElementById('inviteUserForm').addEventListener('submit', submitUserInvite);
-document.getElementById('inviteRole').addEventListener('change', event => {
-  document.getElementById('inviteDepartment').disabled = event.target.value === 'analyst';
-});
 document.getElementById('userManagementBody').addEventListener('change', event => {
-  const requestRole = event.target.closest('[data-request-role]');
-  if(requestRole){
-    const department = document.querySelector(`[data-request-department="${CSS.escape(requestRole.dataset.requestRole)}"]`);
-    if(department) department.disabled = requestRole.value === 'analyst';
-  }
   const select = event.target.closest('[data-user-role]');
   if(select) changeManagedUserProfile(select.dataset.userRole);
-  const department = event.target.closest('[data-user-department]');
-  if(department) changeManagedUserProfile(department.dataset.userDepartment);
 });
 document.getElementById('userManagementBody').addEventListener('click', event => {
   const approveRequest = event.target.closest('[data-request-approve]');
@@ -3408,6 +3483,13 @@ const MASTER_DATA_SHEETS = [
     mode: 'insert',
     fields: [[0,'sale_date'],[1,'customer'],[2,'brand'],[3,'sku'],[4,'qty'],[5,'unit_price']],
   },
+  {
+    sheetName: 'Co-fill Monitoring',
+    table: 'cofill_monitoring',
+    headerSignature: 'date',
+    mode: 'insert',
+    fields: [[0,'monitor_date'],[1,'account'],[2,'delivered_kg'],[3,'bulk_withdrawal_kg'],[4,'production_withdrawal_kg']],
+  },
 ];
 
 // Finds the header row by scanning column A for the expected label, rather
@@ -3444,6 +3526,45 @@ function extractSheetRows(rawRows, cfg){
 // ERP workbook pipeline: syncs whichever of the 14 known sheets are present
 // in an already-parsed workbook to their matching Supabase tables. Returns a
 // single summary string. Requires an active Cloud Sync session to write.
+function normalizeImportRows(records){
+  const dateKey=key=>key==='report_date'||key==='date'||key.endsWith('_date');
+  return records.map(record=>Object.fromEntries(Object.entries(record).map(([key,value])=>{
+    if(value instanceof Date)value=value.toISOString().slice(0,10);
+    else if(dateKey(key)&&typeof value==='number'){const parsed=XLSX.SSF.parse_date_code(value);if(parsed)value=`${parsed.y}-${String(parsed.m).padStart(2,'0')}-${String(parsed.d).padStart(2,'0')}`;}
+    else if(dateKey(key)&&typeof value==='string'){const parsed=new Date(value);if(!Number.isNaN(parsed.getTime()))value=`${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}`;}
+    return [key,value];
+  })));
+}
+async function invokeDataApprovals(body){
+  const client=getSupabaseClient();if(!client)throw new Error('Supabase is unavailable.');
+  const {data,error}=await client.functions.invoke('data-approvals',{body});
+  if(error){let message=error.message||'Pending-review request failed.';try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch(_ignored){}throw new Error(message);}
+  if(data?.error)throw new Error(data.error);return data;
+}
+async function queueWorkbookForReview(wb,file,dashboardInstance){
+  const sections=[];
+  for(const cfg of MASTER_DATA_SHEETS){if(!wb.SheetNames.includes(cfg.sheetName))continue;const raw=XLSX.utils.sheet_to_json(wb.Sheets[cfg.sheetName],{header:1,raw:true,defval:null});const rows=extractSheetRows(raw,cfg);if(rows?.length)sections.push({name:cfg.sheetName,target:cfg.table,mode:cfg.mode,conflict:cfg.conflictCol||null,rows:normalizeImportRows(rows)});}
+  const simpleSheet=wb.SheetNames.includes('STORAGE READING')?'STORAGE READING':(!sections.length?wb.SheetNames[0]:null);
+  if(simpleSheet){const raw=XLSX.utils.sheet_to_json(wb.Sheets[simpleSheet],{header:1,raw:true,defval:null});const parsed=dashboardInstance.parseReportRows(raw);if(parsed.records.length)sections.push({name:simpleSheet,target:'daily_reports',mode:'upsert',conflict:'report_date',rows:parsed.records.map(r=>({report_date:r.date,beginning_total:r.beginning_total,ending_total:r.ending_total,gain_loss:r.gain_loss,purchases:r.purchases,withdrawals:r.withdrawals,tanks_end:r.tanks_end}))});}
+  if(!sections.length)throw new Error(`"${file.name}" has no recognized data sheets.`);
+  const importType=sections.some(s=>s.target==='daily_reports')?(sections.length>1?'mixed':'dashboard_report'):'erp_workbook';
+  const started=await invokeDataApprovals({action:'start',file_name:file.name,import_type:importType});let batchNo=0,totalRows=0;
+  for(const section of sections){for(let i=0;i<section.rows.length;i+=250){const rows=section.rows.slice(i,i+250);await invokeDataApprovals({action:'append',import_id:started.id,batch_no:batchNo++,target_table:section.target,write_mode:section.mode,conflict_columns:section.conflict,rows});totalRows+=rows.length;}}
+  return invokeDataApprovals({action:'finish',import_id:started.id,summary:{sections:sections.map(s=>({sheet:s.name,target:s.target,rows:s.rows.length})),total_rows:totalRows}});
+}
+function setPendingUploadsStatus(message='',ok=true){const el=document.getElementById('pendingUploadsStatus');el.textContent=message;el.className='user-manager-status '+(message?(ok?'ok':'err'):'');}
+async function loadPendingUploads(){
+  setPendingUploadsStatus('Loading review queue…',true);const body=document.getElementById('pendingUploadsBody');body.innerHTML='<tr><td colspan="6">Loading pending uploads…</td></tr>';
+  try{const data=await invokeDataApprovals({action:'list'}),items=data.items||[];document.getElementById('pendingUploadCount').textContent=items.length;
+    body.innerHTML=items.length?items.map(item=>`<tr><td><div class="user-name">${escapeHtml(item.file_name)}</div><div class="user-email">${escapeHtml(item.import_type)}</div></td><td>${escapeHtml(item.summary?.uploader_name||item.uploader_role)}</td><td>${item.row_count.toLocaleString()} rows<br><span class="user-email">${item.sheet_count} section(s)</span></td><td><span class="status-pill ${item.status==='failed'?'disabled':'pending'}">${escapeHtml(item.status.replace('_',' '))}</span></td><td>${escapeHtml(formatUserDate(item.submitted_at))}</td><td>${item.can_approve?`<div class="user-action-group"><button class="action-btn user-action-btn" data-import-approve="${item.id}">Approve</button><button class="action-btn user-action-btn remove" data-import-reject="${item.id}">Reject</button></div>`:'<span class="current-user-note">Review only / maker protected</span>'}</td></tr>`).join(''):'<tr><td colspan="6">No pending uploads.</td></tr>';
+    setPendingUploadsStatus(`${items.length} item(s) awaiting review.`,true);
+  }catch(err){body.innerHTML='<tr><td colspan="6">Unable to load queue.</td></tr>';setPendingUploadsStatus(err.message,false);}
+}
+async function refreshPendingUploadCount(){if(!['admin','manager','supervisor','analyst'].includes(currentAuth.role))return;try{const data=await invokeDataApprovals({action:'list'});document.getElementById('pendingUploadCount').textContent=(data.items||[]).length;}catch(_ignored){}}
+async function openPendingUploads(){const ok=await requireRole(['admin','manager','supervisor','analyst'],'Your role cannot open the review queue.',()=>{});if(!ok)return;document.getElementById('pendingUploadsOverlay').classList.add('show');document.getElementById('pendingUploadsOverlay').setAttribute('aria-hidden','false');await loadPendingUploads();}
+function closePendingUploads(){document.getElementById('pendingUploadsOverlay').classList.remove('show');document.getElementById('pendingUploadsOverlay').setAttribute('aria-hidden','true');}
+async function reviewPendingUpload(id,decision){const verb=decision==='approve'?'approve and publish':'reject';if(!window.confirm(`${verb[0].toUpperCase()+verb.slice(1)} this Excel upload?`))return;setPendingUploadsStatus(decision==='approve'?'Publishing approved rows…':'Rejecting upload…',true);try{const data=await invokeDataApprovals({action:decision,import_id:id});setPendingUploadsStatus(data.message,true);await loadPendingUploads();if(decision==='approve')await syncFromCloud();}catch(err){setPendingUploadsStatus(err.message,false);}}
+
 async function syncERPWorkbook(wb){
   const client = getSupabaseClient();
   if(!client) return 'ERP sync: Supabase not available.';
