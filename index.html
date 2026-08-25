@@ -62,6 +62,12 @@
     color:var(--text-secondary); cursor:pointer; font-size:12.5px; z-index:1; white-space:nowrap;
   }
   .theme-toggle:hover{ border-color:var(--accent); color:var(--text-primary); }
+  .settings-trigger{
+    width:40px; height:40px; display:grid; place-items:center; flex:0 0 auto; border-radius:11px;
+    background:rgba(255,255,255,.05); border:1px solid var(--border-soft); color:var(--text-primary);
+    cursor:pointer; font-size:18px; z-index:1;
+  }
+  .settings-trigger:hover{ border-color:var(--accent); color:var(--accent); }
   .app{
     display:grid;
     grid-template-columns: 270px 1fr;
@@ -259,12 +265,24 @@
   .ops-kpi .kpi-sub{font-size:9.5px;margin-top:6px;}
   .ops-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
   .ops-chart-wrap{position:relative;height:220px;min-height:220px;}
+  .cofill-chart-wrap{position:relative;height:220px;min-height:220px;}
+  .cofill-chart-center{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:112px;
+    text-align:center; pointer-events:none; line-height:1.15;
+  }
+  .cofill-chart-center span{display:block;color:var(--text-faint);font-size:8.5px;text-transform:uppercase;letter-spacing:.45px;}
+  .cofill-chart-center strong{display:block;margin-top:5px;color:var(--text-primary);font-size:19px;font-variant-numeric:tabular-nums;}
+  .cofill-chart-center small{display:block;margin-top:3px;color:var(--text-secondary);font-size:8.5px;}
   .sales-leader-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px;}
   .sales-leader{padding:9px;border-radius:9px;background:var(--bg-card-alt);border:1px solid var(--border-soft);min-width:0;}
   .sales-leader b{display:block;color:var(--accent);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .sales-leader span{display:block;color:var(--text-faint);font-size:9px;margin-top:3px;}
+  .sales-breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+  .sales-mini-chart{min-width:0;}
+  .sales-mini-title{margin:0 0 5px;color:var(--text-secondary);font-size:9px;font-weight:700;text-align:center;text-transform:uppercase;letter-spacing:.4px;}
+  .sales-mini-canvas{position:relative;height:155px;min-height:155px;}
   @media(max-width:1300px){.ops-kpi-row{grid-template-columns:repeat(3,1fr);}}
-  @media(max-width:760px){.ops-kpi-row,.ops-grid{grid-template-columns:1fr 1fr}.sales-leader-grid{grid-template-columns:1fr}.ops-chart-wrap{height:190px;min-height:190px;}}
+  @media(max-width:760px){.ops-kpi-row{grid-template-columns:1fr 1fr}.ops-grid{grid-template-columns:1fr}.sales-leader-grid,.sales-breakdown-grid{grid-template-columns:1fr}.ops-chart-wrap,.cofill-chart-wrap{height:210px;min-height:210px}.sales-mini-canvas{height:175px;min-height:175px;}}
   .chart-scroll{ width:100%; overflow-x:auto; overflow-y:hidden; padding-bottom:8px; scrollbar-color:var(--accent-dim) transparent; scrollbar-width:thin; }
   .chart-scroll-inner{ position:relative; min-width:100%; height:340px; }
   .chart-scroll-inner canvas{ width:100% !important; height:100% !important; max-height:none !important; }
@@ -513,6 +531,48 @@
   .app-toast.show{ transform:translateY(0); opacity:1; }
   .app-toast.err{ border-color:rgba(248,113,113,.45); }
   [data-role-hidden="true"]{ display:none !important; }
+  .settings-overlay{
+    display:none; position:fixed; inset:0; z-index:2900; background:rgba(2,10,7,.68); backdrop-filter:blur(5px);
+  }
+  .settings-overlay.show{ display:block; }
+  .settings-drawer{
+    position:absolute; top:0; right:0; width:min(410px,100%); height:100%; overflow-y:auto;
+    padding:22px; background:var(--bg-app); border-left:1px solid var(--border-soft);
+    box-shadow:-22px 0 70px rgba(0,0,0,.48); transform:translateX(102%); transition:transform .24s ease;
+  }
+  .settings-overlay.show .settings-drawer{ transform:translateX(0); }
+  .settings-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; }
+  .settings-head h2{ margin:0; font-size:19px; }
+  .settings-close{ width:38px; height:38px; padding:0; margin:0; }
+  .settings-profile{
+    display:grid; grid-template-columns:48px 1fr auto; gap:12px; align-items:center; padding:14px;
+    border:1px solid var(--border-soft); border-radius:14px; background:var(--bg-card); box-shadow:var(--shadow);
+  }
+  .settings-avatar{ width:48px; height:48px; display:grid; place-items:center; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:19px; font-weight:800; }
+  .settings-profile-name{ color:var(--text-primary); font-size:13px; font-weight:700; }
+  .settings-profile-email{ margin-top:3px; color:var(--text-secondary); font-size:10.5px; overflow-wrap:anywhere; }
+  .settings-profile-scope{ margin-top:4px; color:var(--text-faint); font-size:9.5px; text-transform:capitalize; }
+  .settings-status{ display:inline-flex; align-items:center; gap:5px; color:var(--positive); font-size:9.5px; white-space:nowrap; }
+  .settings-status::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--positive); box-shadow:0 0 8px rgba(74,222,128,.65); }
+  .settings-section{ margin-top:18px; }
+  .settings-section-title{ margin:0 0 7px 5px; color:var(--text-faint); font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.65px; }
+  .settings-menu{ overflow:hidden; border:1px solid var(--border-soft); border-radius:14px; background:var(--bg-card); }
+  .settings-item{
+    width:100%; min-height:52px; display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px;
+    padding:9px 12px; border:0; border-bottom:1px solid var(--border-soft); background:transparent;
+    color:var(--text-primary); text-align:left; cursor:pointer;
+  }
+  .settings-item:last-child{ border-bottom:0; }
+  .settings-item:hover{ background:var(--accent-soft); }
+  .settings-item-icon{ width:32px; height:32px; display:grid; place-items:center; border-radius:50%; background:rgba(255,255,255,.055); color:var(--accent); font-size:15px; }
+  .settings-item-main{ display:block; font-size:12px; font-weight:650; }
+  .settings-item-sub{ display:block; margin-top:2px; color:var(--text-faint); font-size:9.5px; font-weight:400; }
+  .settings-chevron{ color:var(--text-faint); font-size:18px; }
+  .settings-switch{ position:relative; width:40px; height:22px; border-radius:999px; background:var(--accent); }
+  .settings-switch::after{ content:""; position:absolute; width:16px; height:16px; top:3px; right:3px; border-radius:50%; background:#03140c; transition:.2s ease; }
+  body.light-theme .settings-switch::after{ right:21px; }
+  .settings-item.danger .settings-item-icon,.settings-item.danger .settings-item-main{ color:var(--negative); }
+  .settings-version{ margin-top:17px; color:var(--text-faint); text-align:center; font-size:9.5px; }
   .user-manager-overlay, .department-workspace-overlay{
     display:none; position:fixed; inset:0; z-index:2800; padding:28px;
     align-items:center; justify-content:center; background:rgba(2,10,7,.78); backdrop-filter:blur(6px);
@@ -601,19 +661,19 @@
       background-image:linear-gradient(180deg,rgba(2,18,24,.64),rgba(2,18,23,.86)),url('assets/lpg-login-hero.png');
       background-size:cover; background-position:25% center; background-attachment:fixed;
     }
-    .auth-brand{ min-height:auto; padding:20px 22px 8px; display:block; border:0; background:none; }
+    .auth-brand{ min-height:auto; height:68px; padding:10px 16px 4px; display:block; border:0; background:none; }
     .auth-brand::after{ display:none; }
     .auth-brand > *{ opacity:1; pointer-events:auto; }
     .auth-brand-name{ gap:12px; }
-    .auth-brand-mark{ width:62px; height:62px; border:0; border-radius:13px; background:rgba(2,20,24,.34); box-shadow:none; }
+    .auth-brand-mark{ width:48px; height:48px; border:0; border-radius:11px; background:rgba(2,20,24,.34); box-shadow:none; }
     .brand-logo-svg{ width:36px; height:36px; }
-    .brand-logo-img{ width:58px; height:58px; }
-    .auth-brand-name strong{ font-size:18px; }
+    .brand-logo-img{ width:45px; height:45px; }
+    .auth-brand-name strong{ font-size:16px; }
     .auth-brand-name span{ font-size:9px; }
     .auth-brand h1, .auth-brand p, .auth-feature-row, .auth-tank-art, .auth-security-note{ display:none; }
-    .auth-form-area{ min-height:0; padding:12px 16px 36px; align-items:flex-start; background:transparent; }
+    .auth-form-area{ min-height:0; padding:4px 14px 16px; align-items:flex-start; background:transparent; }
     .auth-panel{
-      width:100%; padding:24px 20px; border:0; border-radius:22px;
+      width:100%; padding:18px 18px; border:0; border-radius:20px;
       background:linear-gradient(155deg,rgba(5,29,34,.76),rgba(3,19,24,.70));
       box-shadow:0 22px 56px rgba(0,0,0,.32); backdrop-filter:blur(16px) saturate(120%);
     }
@@ -624,17 +684,22 @@
     #authViewEmployee .auth-submit{ min-height:44px; }
     #authViewEmployee .register-note{ padding:8px 10px; font-size:10px; line-height:1.4; }
     #employeeRegisterStatus:not(:empty){ margin:0 0 9px; padding:9px 10px; font-size:11.5px; }
-    .auth-card-top{ margin-bottom:20px; }
-    .auth-shield,.auth-shield svg{ width:48px; height:48px; }
-    .online-pill{ padding:8px 11px; font-size:10px; }
-    .auth-panel h2{ font-size:26px; }
-    .auth-panel .intro{ margin-bottom:22px; color:#bdcec6; font-size:14px; }
+    .auth-card-top{ margin-bottom:8px; }
+    .auth-shield,.auth-shield svg{ width:34px; height:34px; }
+    .online-pill{ padding:6px 9px; font-size:9px; }
+    .online-pill i{ width:8px; height:8px; }
+    .auth-panel h2{ font-size:22px; }
+    .auth-panel .intro{ margin-bottom:12px; color:#bdcec6; font-size:12px; line-height:1.4; }
     .auth-label{ color:#c9d8d1; font-size:12.5px; }
-    .auth-input{ min-height:48px; padding:13px 48px; color:#fff; font-size:15px; }
+    .auth-input{ min-height:44px; padding:10px 44px; margin-bottom:10px; color:#fff; font-size:14px; }
+    .auth-input-icon{ top:12px; width:18px; height:18px; }
     .password-wrap .auth-input{ padding-right:68px; }
-    .auth-submit{ min-height:48px; font-size:14px; }
+    .auth-links{ margin:-1px 0 10px; }
+    .auth-submit{ min-height:46px; margin-top:2px; padding-top:10px; padding-bottom:10px; font-size:13.5px; }
+    .auth-status{ margin-top:7px; min-height:13px; }
     .auth-link, .viewer-register-link{ font-size:13px; }
-    .auth-no-signup{ color:#9eb2a9; font-size:12px; line-height:1.6; }
+    .auth-no-signup{ margin-top:12px; padding-top:10px; color:#9eb2a9; font-size:11px; line-height:1.4; }
+    .auth-no-signup + .auth-no-signup{ margin-top:5px; }
     .auth-trust-row{ display:none; }
     .register-name-grid{ grid-template-columns:1fr; gap:0; }
     .account-email{ display:none; }
@@ -644,6 +709,9 @@
     .invite-user-form .action-btn{ width:100%; }
     .department-entry-form{ grid-template-columns:1fr; }
     .workspace-toolbar{ align-items:stretch; flex-direction:column; }
+    .settings-drawer{ width:100%; padding:16px; }
+    .settings-profile{ grid-template-columns:44px 1fr; }
+    .settings-status{ grid-column:2; }
   }
 
   @media print{
@@ -689,8 +757,8 @@
           <div class="auth-shield" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M32 4 52 12v15c0 14-8 25-20 32C20 52 12 41 12 27V12Z" fill="rgba(18,226,163,.15)" stroke="currentColor" stroke-width="4"/><rect x="23" y="28" width="18" height="16" rx="3" fill="currentColor"/><path d="M27 28v-5a5 5 0 0 1 10 0v5" stroke="currentColor" stroke-width="3"/></svg></div>
           <span class="online-pill"><i></i>System Online</span>
         </div>
-        <h2>Welcome back</h2>
-        <p class="intro">Authorized employees only. Sign in using your approved company account.</p>
+        <h2>Sign in to your account</h2>
+        <p class="intro">Enter your approved company email and password.</p>
         <label class="auth-label" for="loginEmail">Company email address</label>
         <div class="auth-input-wrap">
           <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>
@@ -769,7 +837,7 @@
     <div class="header-title">
       <div class="icon"><img src="assets/lpg-logo.png" alt="LPG Operations logo"></div>
       <div>
-        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2</small></h1>
+        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.0</small></h1>
         <div class="subtitle" id="subtitle-range">Loading period…</div>
       </div>
     </div>
@@ -778,13 +846,7 @@
       <div class="meta-pill">Days Reported<b id="meta-days">—</b></div>
       <div class="meta-pill">Tanks Monitored<b>10</b></div>
       <div class="meta-pill">Last Update<b id="meta-latest">—</b></div>
-      <div class="account-controls">
-        <span class="role-badge" id="sessionRoleBadge">—</span>
-        <span class="account-email" id="sessionUserEmail">—</span>
-        <button class="account-btn" id="changePasswordBtn" type="button">Change password</button>
-        <button class="account-btn" id="headerSignOutBtn" type="button">Sign out</button>
-      </div>
-      <div class="theme-toggle" id="themeToggle">🌙 <span id="themeLabel">Dark Mode</span></div>
+      <button class="settings-trigger" id="settingsTriggerBtn" type="button" aria-label="Open settings" aria-controls="settingsOverlay" aria-expanded="false">⚙</button>
       <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open filters and settings">☰ Menu</button>
     </div>
   </div>
@@ -826,8 +888,8 @@
     </div>
 
     <div class="slicer-box">
-      <h4>Tank Select</h4>
-      <div class="chip-grid" id="tankChips"></div>
+      <h4>Account Select</h4>
+      <div class="chip-grid" id="accountChips"></div>
     </div>
 
     <div class="slicer-box">
@@ -861,15 +923,6 @@
       <div class="workspace-scope" id="departmentWorkspaceScope">Scoped operational entry</div>
       <button class="action-btn primary" id="openDepartmentWorkspaceBtn" type="button">✎ Open Data Entry</button>
       <div style="font-size:10.5px; color:var(--text-faint); line-height:1.5;">Securely limited by your role and assigned department. Deleting records is not allowed.</div>
-    </div>
-
-    <div class="slicer-box">
-      <h4>Secure Session</h4>
-      <div id="sidebarAccountEmail" style="font-size:11.5px; color:var(--accent); margin-bottom:5px; overflow-wrap:anywhere;">—</div>
-      <div id="sidebarAccountRole" style="font-size:10.5px; color:var(--text-secondary); margin-bottom:9px;">Role: —</div>
-      <button class="action-btn primary" id="manageUsersBtn" type="button">👥 Manage Users</button>
-      <button class="action-btn" id="sidebarSignOutBtn" type="button">Sign Out</button>
-      <div class="upload-status" id="cloudStatus">Checking protected cloud connection…</div>
     </div>
 
     <div class="slicer-box">
@@ -920,13 +973,13 @@
       <div class="ops-kpi"><div class="kpi-label">Empty Cylinders</div><div class="kpi-value" id="opsEmptyStock">—</div><div class="kpi-sub">latest month snapshot</div></div>
       <div class="ops-kpi"><div class="kpi-label">Reject / Decanting</div><div class="kpi-value" id="opsRejectDecant">—</div><div class="kpi-sub">selected period</div></div>
       <div class="ops-kpi"><div class="kpi-label">Co-fill Delivered</div><div class="kpi-value" id="opsCofillDelivered">—</div><div class="kpi-sub">kg received</div></div>
-      <div class="ops-kpi"><div class="kpi-label">Co-fill Actual Stock</div><div class="kpi-value" id="opsCofillNet">—</div><div class="kpi-sub">delivered − bulk − production</div></div>
+      <div class="ops-kpi"><div class="kpi-label">Co-fill &amp; Owner Stock</div><div class="kpi-value" id="opsCofillNet">—</div><div class="kpi-sub">current account balances</div></div>
     </div>
     <div class="ops-grid">
       <div class="panel"><div class="panel-head"><h3>TOTAL CYLINDERS REFILLED PER SKU</h3><span class="tag">pieces</span></div><div class="ops-chart-wrap"><canvas id="opsProductionChart"></canvas></div></div>
-      <div class="panel"><div class="panel-head"><h3>CYLINDER INVENTORY STATUS</h3><span class="tag">latest stock + period exceptions</span></div><div class="ops-chart-wrap"><canvas id="opsInventoryChart"></canvas></div></div>
-      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag">delivered vs withdrawal / production</span></div><div class="ops-chart-wrap"><canvas id="opsCofillChart"></canvas></div></div>
-      <div class="panel"><div class="panel-head"><h3>TOP SALES — BRAND, SIZE &amp; CUSTOMER</h3><span class="tag">cylinders sold</span></div><div class="ops-chart-wrap"><canvas id="opsSalesChart"></canvas></div><div class="sales-leader-grid"><div class="sales-leader"><b id="opsTopBrand">—</b><span>Top brand</span></div><div class="sales-leader"><b id="opsTopSku">—</b><span>Top cylinder size</span></div><div class="sales-leader"><b id="opsTopCustomer">—</b><span>Top customer</span></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>FILLED FLOOR STOCK PER CYLINDER SIZE</h3><span class="tag">latest stock in selected period</span></div><div class="ops-chart-wrap"><canvas id="opsInventoryChart"></canvas></div></div>
+      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag" id="opsCofillTag">current stock by account</span></div><div class="cofill-chart-wrap"><canvas id="opsCofillChart"></canvas><div class="cofill-chart-center"><span id="opsCofillCenterLabel">Current Total Stock</span><strong id="opsCofillCenterValue">—</strong><small id="opsCofillCenterUnit">kg</small></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>TOP SALES — BRAND, SIZE &amp; CUSTOMER</h3><span class="tag">selected period · cylinders sold</span></div><div class="sales-breakdown-grid"><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Brands</div><div class="sales-mini-canvas"><canvas id="opsSalesBrandChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Cylinder Size</div><div class="sales-mini-canvas"><canvas id="opsSalesSkuChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Customers</div><div class="sales-mini-canvas"><canvas id="opsSalesCustomerChart"></canvas></div></div></div><div class="sales-leader-grid"><div class="sales-leader"><b id="opsTopBrand">—</b><span>Top brand</span></div><div class="sales-leader"><b id="opsTopSku">—</b><span>Top cylinder size</span></div><div class="sales-leader"><b id="opsTopCustomer">—</b><span>Top customer</span></div></div></div>
     </div>
 
     <!-- ROW 2: trend + tank farm -->
@@ -1102,6 +1155,71 @@
   </section>
 </div>
 
+<div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
+  <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-head">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="account-btn settings-close" id="settingsCloseBtn" type="button" aria-label="Close settings">✕</button>
+    </div>
+
+    <div class="settings-profile">
+      <div class="settings-avatar" id="settingsAvatar">U</div>
+      <div>
+        <div class="settings-profile-name" id="settingsProfileName">Signed-in user</div>
+        <div class="settings-profile-email" id="sessionUserEmail">—</div>
+        <div class="settings-profile-scope" id="settingsProfileScope">Role: —</div>
+      </div>
+      <div class="settings-status">Active</div>
+    </div>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Account</h3>
+      <div class="settings-menu">
+        <button class="settings-item" id="changePasswordBtn" type="button">
+          <span class="settings-item-icon">🔑</span><span><span class="settings-item-main">Change password</span><span class="settings-item-sub">Update your secure account password</span></span><span class="settings-chevron">›</span>
+        </button>
+        <button class="settings-item" id="sessionInfoBtn" type="button">
+          <span class="settings-item-icon">✓</span><span><span class="settings-item-main">Session &amp; security</span><span class="settings-item-sub" id="cloudStatus">Checking protected cloud connection…</span></span><span class="settings-chevron">›</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="settings-section" id="settingsAdminSection">
+      <h3 class="settings-section-title">Admin tools</h3>
+      <div class="settings-menu">
+        <button class="settings-item" id="manageUsersBtn" type="button">
+          <span class="settings-item-icon">👥</span><span><span class="settings-item-main">Manage users &amp; requests</span><span class="settings-item-sub">Approvals, roles, departments and access</span></span><span class="settings-chevron">›</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Display &amp; accessibility</h3>
+      <div class="settings-menu">
+        <button class="settings-item" id="themeToggle" type="button">
+          <span class="settings-item-icon" id="themeIcon">🌙</span><span><span class="settings-item-main" id="themeLabel">Dark Mode</span><span class="settings-item-sub">Switch dashboard color appearance</span></span><span class="settings-switch" aria-hidden="true"></span>
+        </button>
+        <button class="settings-item" id="compactViewBtn" type="button">
+          <span class="settings-item-icon">▦</span><span><span class="settings-item-main">Compact dashboard view</span><span class="settings-item-sub">Optimized automatically for this screen</span></span><span class="settings-chevron">›</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Support</h3>
+      <div class="settings-menu">
+        <button class="settings-item" id="helpSupportBtn" type="button">
+          <span class="settings-item-icon">?</span><span><span class="settings-item-main">Help &amp; support</span><span class="settings-item-sub">Role access and dashboard guidance</span></span><span class="settings-chevron">›</span>
+        </button>
+        <button class="settings-item danger" id="settingsSignOutBtn" type="button">
+          <span class="settings-item-icon">↪</span><span><span class="settings-item-main">Sign out</span><span class="settings-item-sub">End this secure session</span></span><span class="settings-chevron">›</span>
+        </button>
+      </div>
+    </section>
+    <div class="settings-version">LPG Operations Management System · Version 2.2.0</div>
+  </aside>
+</div>
+
 <div class="app-toast" id="appToast" role="status" aria-live="polite"></div>
 
 <script src="assets/operations-dashboard-data.js"></script>
@@ -1130,6 +1248,16 @@ function fmtDate(d){
 function fmtDateFull(d){
   const dt = new Date(d+'T00:00:00');
   return dt.toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'});
+}
+
+function cofillAccountLabel(account){
+  const labels={
+    'Account 1':'Co-fill Account 1',
+    'Account 2':'Co-fill Account 2',
+    'Account 3':'Co-fill Account 3',
+    'Account 4':'Owner Account'
+  };
+  return labels[account] || account;
 }
 
 class Dashboard{
@@ -1161,6 +1289,7 @@ class Dashboard{
     this.activeSources = new Set(this.sources);
     this.activeChannels = new Set(this.channels);
     this.activeTanks = new Set(this.tankNames);
+    this.activeAccount = 'all';
 
     this.dateFrom = this.raw[0].date;
     this.dateTo = this.raw[this.raw.length-1].date;
@@ -1287,7 +1416,7 @@ class Dashboard{
     document.getElementById('dateTo').min = this.raw[0].date;
     document.getElementById('dateTo').max = this.raw[this.raw.length-1].date;
 
-    this.buildChips('tankChips', this.tankNames, this.activeTanks, ()=>this.render());
+    this.buildAccountChips();
     this.buildChips('sourceChips', this.sources, this.activeSources, ()=>this.render());
     this.buildChips('channelChips', this.channels, this.activeChannels, ()=>this.render());
 
@@ -1297,7 +1426,7 @@ class Dashboard{
   toggleTheme(){
     const isLight = document.body.classList.toggle('light-theme');
     document.getElementById('themeLabel').textContent = isLight ? 'Warm Mode' : 'Dark Mode';
-    document.getElementById('themeToggle').firstChild.textContent = isLight ? '🔥 ' : '🌙 ';
+    document.getElementById('themeIcon').textContent = isLight ? '🔥' : '🌙';
     this.render(); // re-render charts with theme-aware colors
   }
 
@@ -1584,6 +1713,26 @@ class Dashboard{
     });
   }
 
+  buildAccountChips(){
+    const source=window.OPERATIONS_DATA;
+    const container=document.getElementById('accountChips');
+    if(!container || !source?.accounts) return;
+    const items=[{value:'all',label:'All Accounts'},...source.accounts.map(value=>({value,label:cofillAccountLabel(value)}))];
+    container.innerHTML='';
+    items.forEach(item=>{
+      const chip=document.createElement('div');
+      chip.className='chip'+(this.activeAccount===item.value?' active':'');
+      chip.textContent=item.label;
+      chip.addEventListener('click',()=>{
+        this.activeAccount=item.value;
+        container.querySelectorAll('.chip').forEach(el=>el.classList.remove('active'));
+        chip.classList.add('active');
+        this.renderOperationsMonitoring();
+      });
+      container.appendChild(chip);
+    });
+  }
+
   get filtered(){
     return this.raw.filter(r => r.date >= this.dateFrom && r.date <= this.dateTo);
   }
@@ -1680,26 +1829,69 @@ class Dashboard{
     source.accounts.forEach(account=>cofill[account]={delivered:0,bulk:0,production:0,withdrawal:0,net:0});
     months.forEach(m=>source.accounts.forEach(account=>{const row=m.cofill?.[account]||{};Object.keys(cofill[account]).forEach(k=>cofill[account][k]+=Number(row[k]||0));}));
     const delivered=Object.values(cofill).reduce((s,r)=>s+r.delivered,0);
-    const net=Object.values(cofill).reduce((s,r)=>s+r.net,0);
+    const currentStock=Number(this.filtered.at(-1)?.ending_total||0);
     document.getElementById('opsProductionTotal').textContent=fmt(sumValues(production));
     document.getElementById('opsFilledStock').textContent=fmt(latest.filled||0);
     document.getElementById('opsEmptyStock').textContent=fmt(latest.empty||0);
     document.getElementById('opsRejectDecant').textContent=`${fmt(rejects)} / ${fmt(decanting)}`;
     document.getElementById('opsCofillDelivered').textContent=fmt(delivered);
-    document.getElementById('opsCofillNet').textContent=fmt(net);
+    document.getElementById('opsCofillNet').textContent=fmt(currentStock);
     const topPair=obj=>Object.entries(obj).sort((a,b)=>b[1]-a[1])[0]||['—',0];
     const topBrand=topPair(brands),topSku=topPair(skus),topCustomer=topPair(customers);
     document.getElementById('opsTopBrand').textContent=`${topBrand[0]} · ${fmt(topBrand[1])}`;
     document.getElementById('opsTopSku').textContent=`${topSku[0]} · ${fmt(topSku[1])}`;
     document.getElementById('opsTopCustomer').textContent=`${topCustomer[0]} · ${fmt(topCustomer[1])}`;
     const tc=this.themeColors();
-    ['opsProduction','opsInventory','opsCofill','opsSales'].forEach(key=>{if(this.charts[key])this.charts[key].destroy();});
+    ['opsProduction','opsInventory','opsCofill','opsSales','opsSalesBrand','opsSalesSku','opsSalesCustomer'].forEach(key=>{if(this.charts[key])this.charts[key].destroy();});
     const baseOptions={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc.legend,font:{size:10},boxWidth:10}},tooltip:{backgroundColor:tc.tooltipBg,borderColor:tc.tooltipBorder,borderWidth:1,titleColor:tc.tooltipText,bodyColor:tc.tooltipText}},scales:{x:{ticks:{color:tc.tick,font:{size:9}},grid:{color:tc.grid}},y:{ticks:{color:tc.tick,font:{size:9},callback:v=>fmt(v)},grid:{color:tc.grid}}}};
+    const barValueLabels={id:'barValueLabels',afterDatasetsDraw(chart){
+      const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='700 9px Segoe UI, sans-serif';ctx.textBaseline='middle';
+      chart.data.datasets.forEach((dataset,di)=>chart.getDatasetMeta(di).data.forEach((bar,i)=>{ctx.textAlign='left';ctx.fillText(fmt(Number(dataset.data[i]||0)),bar.x+5,bar.y);}));ctx.restore();
+    }};
     this.charts.opsProduction=new Chart(document.getElementById('opsProductionChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Refilled',data:source.skus.map(s=>production[s]||0),backgroundColor:'#00C9A7',borderRadius:5}]},options:{...baseOptions,plugins:{...baseOptions.plugins,legend:{display:false}}}});
-    this.charts.opsInventory=new Chart(document.getElementById('opsInventoryChart'),{type:'bar',data:{labels:['Filled floor','Empty','Reject','For decanting'],datasets:[{label:'Units',data:[latest.filled||0,latest.empty||0,rejects,decanting],backgroundColor:['#00C9A7','#7DE2D1','#FF6B6B','#F4D35E'],borderRadius:5}]},options:{...baseOptions,plugins:{...baseOptions.plugins,legend:{display:false}}}});
-    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{type:'bar',data:{labels:source.accounts,datasets:[{label:'Delivered',data:source.accounts.map(a=>cofill[a].delivered),backgroundColor:'#00C9A7'},{label:'Bulk withdrawal',data:source.accounts.map(a=>cofill[a].bulk),backgroundColor:'#FF9F40'},{label:'Production',data:source.accounts.map(a=>cofill[a].production),backgroundColor:'#7DE2D1'}]},options:baseOptions});
-    const rankedBrands=Object.entries(brands).sort((a,b)=>b[1]-a[1]);
-    this.charts.opsSales=new Chart(document.getElementById('opsSalesChart'),{type:'bar',data:{labels:rankedBrands.map(x=>x[0]),datasets:[{label:'Qty sold',data:rankedBrands.map(x=>x[1]),backgroundColor:'#00C9A7',borderRadius:5}]},options:{...baseOptions,indexAxis:'y',plugins:{...baseOptions.plugins,legend:{display:false}}}});
+    const filledBySku=latest.filled_by_sku||{};
+    const cleanFilledOptions={responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:48}},plugins:{legend:{display:false},tooltip:baseOptions.plugins.tooltip},scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:9}},border:{display:false},grid:{display:false}}}};
+    this.charts.opsInventory=new Chart(document.getElementById('opsInventoryChart'),{type:'bar',data:{labels:source.skus,datasets:[{label:'Filled floor stock',data:source.skus.map(s=>filledBySku[s]||0),backgroundColor:'#7DE2D1',borderRadius:5,barPercentage:.72}]},options:cleanFilledOptions,plugins:[barValueLabels]});
+    const netWeightTotal=source.accounts.reduce((sum,account)=>sum+Math.max(0,cofill[account].net),0)||1;
+    const accountBalances=Object.fromEntries(source.accounts.map(account=>[account,currentStock*Math.max(0,cofill[account].net)/netWeightTotal]));
+    const selectedAccount=this.activeAccount||'all';
+    let cofillLabels,cofillValues,cofillColors,centerLabel,centerValue,cofillTag;
+    if(selectedAccount==='all'){
+      cofillLabels=source.accounts.map(cofillAccountLabel);
+      cofillValues=source.accounts.map(account=>accountBalances[account]);
+      cofillColors=['#00C9A7','#7DE2D1','#F4D35E','#38BDF8'];
+      centerLabel='Current Total Stock';
+      centerValue=currentStock;
+      cofillTag='owner + co-fill account balances';
+    }else{
+      const row=cofill[selectedAccount];
+      cofillLabels=['Bulk Withdrawal','Production Withdrawal','Current Balance'];
+      cofillValues=[row.bulk,row.production,accountBalances[selectedAccount]];
+      cofillColors=['#FF9F40','#7DE2D1','#00C9A7'];
+      centerLabel=cofillAccountLabel(selectedAccount);
+      centerValue=accountBalances[selectedAccount];
+      cofillTag=`delivered ${fmt(row.delivered)} kg · selected period`;
+    }
+    document.getElementById('opsCofillCenterLabel').textContent=centerLabel;
+    document.getElementById('opsCofillCenterValue').textContent=fmt(centerValue);
+    document.getElementById('opsCofillTag').textContent=cofillTag;
+    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{
+      type:'doughnut',
+      data:{labels:cofillLabels,datasets:[{data:cofillValues,backgroundColor:cofillColors,borderColor:tc.cardBg,borderWidth:3,hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',layout:{padding:4},plugins:{legend:{position:window.innerWidth<=760?'bottom':'right',labels:{color:tc.legend,font:{size:9},boxWidth:9,padding:10,usePointStyle:true}},tooltip:{backgroundColor:tc.tooltipBg,borderColor:tc.tooltipBorder,borderWidth:1,titleColor:tc.tooltipText,bodyColor:tc.tooltipText,callbacks:{label:context=>`${context.label}: ${fmtFull(context.raw)} kg`}}}}
+    });
+    const salesValueLabels={id:'salesValueLabels',afterDatasetsDraw(chart){
+      const {ctx}=chart;ctx.save();ctx.fillStyle=tc.legend;ctx.font='700 9px Segoe UI, sans-serif';ctx.textBaseline='middle';
+      chart.data.datasets.forEach((dataset,di)=>{const meta=chart.getDatasetMeta(di);if(meta.hidden)return;meta.data.forEach((bar,i)=>{const value=Number(dataset.data[i]||0);ctx.textAlign='left';ctx.fillText(fmt(value),bar.x+5,bar.y);});});ctx.restore();
+    }};
+    const cleanSalesOptions={responsive:true,maintainAspectRatio:false,indexAxis:'y',layout:{padding:{right:45}},plugins:{legend:{display:false},tooltip:baseOptions.plugins.tooltip},scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:8.5}},border:{display:false},grid:{display:false}}}};
+    const salesChart=(id,entries,color)=>new Chart(document.getElementById(id),{type:'bar',data:{labels:entries.map(x=>x[0]),datasets:[{label:'Qty sold',data:entries.map(x=>x[1]),backgroundColor:color,borderRadius:5,barPercentage:.72,categoryPercentage:.82}]},options:cleanSalesOptions,plugins:[salesValueLabels]});
+    const rankedBrands=Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const rankedSkus=Object.entries(skus).sort((a,b)=>b[1]-a[1]);
+    const rankedCustomers=Object.entries(customers).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    this.charts.opsSalesBrand=salesChart('opsSalesBrandChart',rankedBrands,'#00C9A7');
+    this.charts.opsSalesSku=salesChart('opsSalesSkuChart',rankedSkus,'#7DE2D1');
+    this.charts.opsSalesCustomer=salesChart('opsSalesCustomerChart',rankedCustomers,'#F4D35E');
   }
 
   renderTrendChart(rows){
@@ -2088,6 +2280,21 @@ function showToast(message, ok=true){
   toastTimer = setTimeout(()=>{ el.className = 'app-toast'; }, 3800);
 }
 
+function openSettings(){
+  const overlay=document.getElementById('settingsOverlay');
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden','false');
+  document.getElementById('settingsTriggerBtn').setAttribute('aria-expanded','true');
+  document.getElementById('settingsCloseBtn').focus();
+}
+
+function closeSettings(){
+  const overlay=document.getElementById('settingsOverlay');
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden','true');
+  document.getElementById('settingsTriggerBtn').setAttribute('aria-expanded','false');
+}
+
 async function requireRole(allowedRoles, contextMessage, onSuccess){
   const auth = await getVerifiedCurrentUser();
   if(auth.user && allowedRoles.includes(auth.role)){
@@ -2121,17 +2328,20 @@ function setCloudStatus(msg, ok){
   const el = document.getElementById('cloudStatus');
   if(!el) return;
   el.textContent = msg;
-  el.className = 'upload-status ' + (ok ? 'ok' : 'err');
+  el.className = 'settings-item-sub ' + (ok ? 'ok' : 'err');
+  el.style.color = ok ? 'var(--positive)' : 'var(--negative)';
 }
 
 function updateCloudUI(auth){
   const email = auth?.user?.email || '—';
   const role = auth?.role || '—';
+  const fullName = auth?.fullName || email.split('@')[0] || 'Signed-in user';
+  const initials = fullName.split(/\s+/).filter(Boolean).slice(0,2).map(name=>name[0]).join('').toUpperCase() || 'U';
   document.getElementById('sessionUserEmail').textContent = email;
-  document.getElementById('sessionRoleBadge').textContent = role;
-  document.getElementById('sidebarAccountEmail').textContent = email;
-  const department = auth?.department && auth.department !== 'all' ? ` · ${auth.department}` : '';
-  document.getElementById('sidebarAccountRole').textContent = `Role: ${role}${department}`;
+  document.getElementById('settingsProfileName').textContent = fullName;
+  document.getElementById('settingsAvatar').textContent = initials;
+  const department = auth?.department && auth.department !== 'all' ? auth.department : 'All departments';
+  document.getElementById('settingsProfileScope').textContent = `Role: ${role} · ${department}`;
 }
 
 function applyRolePermissions(auth){
@@ -2142,6 +2352,7 @@ function applyRolePermissions(auth){
   document.getElementById('uploadAccessBox').dataset.roleHidden = String(!isAdmin);
   document.getElementById('exportAccessBox').dataset.roleHidden = String(!canExport);
   document.getElementById('manageUsersBtn').dataset.roleHidden = String(!isAdmin);
+  document.getElementById('settingsAdminSection').dataset.roleHidden = String(!isAdmin);
   document.getElementById('departmentWorkspaceBox').classList.toggle('show', canUseDepartmentWorkspace);
   document.getElementById('departmentWorkspaceScope').textContent = isAdmin
     ? 'All departments · administrator control'
@@ -2709,7 +2920,7 @@ function subscribeRealtime(){
     .subscribe();
 }
 
-async function establishAuthorizedSession(){
+async function establishAuthorizedSession(showWelcome=false){
   const client = getSupabaseClient();
   if(!client) throw new Error('Supabase library is unavailable. Check your internet connection.');
   let auth = await getVerifiedCurrentUser();
@@ -2729,6 +2940,11 @@ async function establishAuthorizedSession(){
   document.body.classList.remove('auth-locked');
   document.body.classList.add('auth-unlocked');
   dashboard.render();
+  if(showWelcome){
+    const firstName=(auth.fullName||auth.user?.email||'User').trim().split(/\s+/)[0];
+    const roleLabel=auth.role ? auth.role.charAt(0).toUpperCase()+auth.role.slice(1) : 'User';
+    showToast(`Welcome back, ${firstName}! Signed in successfully as ${roleLabel}.`, true);
+  }
   const isDemo = auth.role === 'viewer' && auth.accessMode === 'demo';
   if(isDemo){
     resetInteractiveDemo('Interactive demo ready · changes remain in this browser session only');
@@ -2744,6 +2960,7 @@ async function establishAuthorizedSession(){
 async function lockApplication(message=''){
   clearSessionIdleMonitor();
   currentAuth = { user:null, role:null, fullName:null, department:null, accessMode:null };
+  closeSettings();
   closeUserManager();
   if(realtimeChannel){
     const client = getSupabaseClient();
@@ -2778,7 +2995,7 @@ async function loginWithPassword(event){
     }
     const { error:setSessionError } = await client.auth.setSession({ access_token:data.access_token, refresh_token:data.refresh_token });
     if(setSessionError) throw setSessionError;
-    await establishAuthorizedSession();
+    await establishAuthorizedSession(true);
     document.getElementById('loginPassword').value = '';
   }catch(err){
     setAuthStatus('loginStatus', err.message || 'Sign-in failed.');
@@ -2952,15 +3169,36 @@ document.getElementById('cancelPasswordChangeBtn').addEventListener('click', ()=
   }else setAuthView('login');
 });
 document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+  closeSettings();
   passwordChangeFromDashboard = true;
   setAuthStatus('resetStatus');
   document.body.classList.remove('auth-unlocked'); document.body.classList.add('auth-locked');
   setAuthView('reset');
 });
-['headerSignOutBtn','sidebarSignOutBtn'].forEach(id => document.getElementById(id).addEventListener('click', ()=>{
+document.getElementById('settingsSignOutBtn').addEventListener('click', ()=>{
+  closeSettings();
   signOutCloud().catch(err => showToast(err.message || 'Sign-out failed.', false));
-}));
+});
+document.getElementById('settingsTriggerBtn').addEventListener('click', openSettings);
+document.getElementById('settingsCloseBtn').addEventListener('click', closeSettings);
+document.getElementById('settingsOverlay').addEventListener('click', event=>{
+  if(event.target.id==='settingsOverlay') closeSettings();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && document.getElementById('settingsOverlay').classList.contains('show')) closeSettings();
+});
+document.getElementById('sessionInfoBtn').addEventListener('click',()=>{
+  const limit=currentAuth.role==='viewer'?'15':'30';
+  showToast(`Secure ${currentAuth.role||'user'} session is active. Automatic sign-out after ${limit} minutes of inactivity.`,true);
+});
+document.getElementById('compactViewBtn').addEventListener('click',()=>{
+  showToast('Compact view is automatically applied based on your screen size.',true);
+});
+document.getElementById('helpSupportBtn').addEventListener('click',()=>{
+  showToast('For access or dashboard support, contact your system administrator.',true);
+});
 document.getElementById('manageUsersBtn').addEventListener('click', ()=>{
+  closeSettings();
   openUserManager().catch(err => showToast(err.message || 'Unable to open user management.', false));
 });
 document.getElementById('closeUserManagerBtn').addEventListener('click', closeUserManager);
