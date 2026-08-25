@@ -287,7 +287,7 @@
   .cofill-chart-center strong{display:block;margin-top:5px;color:var(--text-primary);font-size:19px;font-variant-numeric:tabular-nums;}
   .cofill-chart-center small{display:block;margin-top:3px;color:var(--text-secondary);font-size:8.5px;}
   .donut-side-list{display:flex;flex-direction:column;gap:7px;min-width:0;}
-  .donut-side-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:var(--bg-card-alt);border:1px solid var(--border-soft);}
+  .donut-side-row{display:grid;grid-template-columns:10px minmax(0,1fr);gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:var(--bg-card-alt);border:1px solid var(--border-soft);}
   .donut-swatch{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor;}
   .donut-account{min-width:0;color:var(--text-secondary);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .donut-value{text-align:right;color:var(--text-primary);font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap;}
@@ -438,11 +438,9 @@
   .auth-brand{
     position:relative; overflow:hidden; padding:52px; display:flex; flex-direction:column; justify-content:space-between;
     color:#f5f7fa; background-color:#dff8f3; background-image:url('assets/lpg-login-hero.png');
-    /* Crop before the login card baked into the hero artwork so no duplicate
-       vertical card edge appears between the desktop hero and live form. */
-    /* Keep the photographic LPG artwork full-height while cropping out the
-       mock login card that is baked into the right side of the source image. */
-    background-repeat:no-repeat; background-position:left center; background-size:auto 120%; min-width:0;
+    /* Show the clean reference artwork at full vertical scale so the LPG
+       truck remains visible while the functional form stays in its own panel. */
+    background-repeat:no-repeat; background-position:left bottom; background-size:auto 100%; min-width:0;
   }
   .auth-brand::after{ display:none; }
   .auth-brand > *{ opacity:0; pointer-events:none; }
@@ -855,7 +853,7 @@
     <div class="header-title">
       <div class="icon"><img src="assets/lpg-logo.png" alt="LPG Operations logo"></div>
       <div>
-        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.2-CF2</small></h1>
+        <h1>LPG Operations Management System <small style="font-size:11px;color:var(--accent);vertical-align:middle;white-space:nowrap;">v2.2.2-CF5</small></h1>
         <div class="subtitle" id="subtitle-range">Loading period…</div>
       </div>
     </div>
@@ -1017,7 +1015,7 @@
     <div class="ops-grid">
       <div class="panel"><div class="panel-head"><h3>TOTAL CYLINDERS REFILLED PER SKU</h3><span class="tag">pieces</span></div><div class="ops-chart-wrap"><canvas id="opsProductionChart"></canvas></div></div>
       <div class="panel"><div class="panel-head"><h3>FILLED FLOOR STOCK PER CYLINDER SIZE</h3><span class="tag">latest stock in selected period</span></div><div class="ops-chart-wrap"><canvas id="opsInventoryChart"></canvas></div></div>
-      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag" id="opsCofillTag">current stock by account</span></div><div class="donut-visual"><div class="cofill-chart-wrap"><canvas id="opsCofillChart"></canvas></div><div class="donut-side-list" id="opsCofillLegend"></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>CO-FILL ACCOUNT BALANCE</h3><span class="tag" id="opsCofillTag"></span></div><div class="donut-visual"><div class="cofill-chart-wrap"><canvas id="opsCofillChart"></canvas></div><div class="donut-side-list" id="opsCofillLegend"></div></div></div>
       <div class="panel"><div class="panel-head"><h3>TOP SALES — BRAND, SIZE &amp; CUSTOMER</h3><span class="tag">selected period · cylinders sold</span></div><div class="sales-breakdown-grid"><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Brands</div><div class="sales-mini-canvas"><canvas id="opsSalesBrandChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Cylinder Size</div><div class="sales-mini-canvas"><canvas id="opsSalesSkuChart"></canvas></div></div><div class="sales-mini-chart"><div class="sales-mini-title">Top 5 Customers</div><div class="sales-mini-canvas"><canvas id="opsSalesCustomerChart"></canvas></div></div></div><div class="sales-leader-grid"><div class="sales-leader"><b id="opsTopBrand">—</b><span>Top brand</span></div><div class="sales-leader"><b id="opsTopSku">—</b><span>Top cylinder size</span></div><div class="sales-leader"><b id="opsTopCustomer">—</b><span>Top customer</span></div></div></div>
     </div>
 
@@ -1116,8 +1114,9 @@
   </div>
 
   <footer>
-    LPG Storage &amp; Production Monitoring Dashboard · Synthetic 2023–2026 demonstration dataset · Refresh by uploading a compatible Excel workbook
-    <div class="credit-line">Project Author · Data Analyst · Developer: <strong>Jessie Rey Sagaysay</strong></div>
+    <strong>LPG Storage &amp; Production Monitoring Dashboard</strong>
+    <div><em>Synthetic 2023–2026 demonstration dataset · Refresh by uploading a compatible Excel workbook</em></div>
+    <div class="credit-line"><strong>Operations Intelligence Platform · Analytics &amp; Monitoring</strong></div>
   </footer>
 </div>
 
@@ -1271,7 +1270,7 @@
         </button>
       </div>
     </section>
-    <div class="settings-version">LPG Operations Management System · Version 2.2.2-CF2 · Accent Color Fix</div>
+    <div class="settings-version">LPG Operations Management System · Version 2.2.2-CF5 · Full Hero Review</div>
   </aside>
 </div>
 
@@ -1961,12 +1960,13 @@ class Dashboard{
     accountBalances['Account 4']=Math.max(0,currentStock-source.accounts.slice(0,3).reduce((sum,account)=>sum+accountBalances[account],0));
     const selectedAccount=this.activeAccount||'all';
     const cofillLabels=source.accounts.map(cofillAccountLabel),cofillValues=source.accounts.map(account=>accountBalances[account]);
-    const cofillColors=['#34e29b','#22a5e0','#facc15','#a78bfa'];
+    const cofillColors=['#a78bfa','#22a5e0','#facc15','#34e29b'];
     const displayColors=cofillColors.map((color,index)=>selectedAccount==='all'||source.accounts[index]===selectedAccount?color:`${color}40`);
-    document.getElementById('opsCofillTag').textContent=selectedAccount==='all'?'Co-fill 1 + 2 + 3 + Owner = Total Stock':`${cofillAccountLabel(selectedAccount)} highlighted`;
-    document.getElementById('opsCofillLegend').innerHTML=source.accounts.map((account,index)=>{const value=cofillValues[index],pct=currentStock?value/currentStock*100:0;return `<div class="donut-side-row" style="opacity:${selectedAccount==='all'||account===selectedAccount?1:.45}"><span class="donut-swatch" style="background:${cofillColors[index]};color:${cofillColors[index]}"></span><span class="donut-account">${escapeHtml(cofillAccountLabel(account))}</span><span class="donut-value">${fmt(value)} kg<small>${pct.toFixed(1)}%</small></span></div>`;}).join('');
+    document.getElementById('opsCofillTag').textContent='';
+    document.getElementById('opsCofillLegend').innerHTML=source.accounts.map((account,index)=>`<div class="donut-side-row" style="opacity:${selectedAccount==='all'||account===selectedAccount?1:.45}"><span class="donut-swatch" style="background:${cofillColors[index]};color:${cofillColors[index]}"></span><span class="donut-account">${escapeHtml(cofillAccountLabel(account))}</span></div>`).join('');
     const centerLabel={id:'cofillCenterLabel',afterDraw(chart){const meta=chart.getDatasetMeta(0);if(!meta.data.length)return;const {ctx}=chart,center=meta.data[0];ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText('TOTAL ACCOUNT',center.x,center.y-16);ctx.fillStyle=tc.tooltipText;ctx.font='700 18px Segoe UI, sans-serif';ctx.fillText(fmt(currentStock),center.x,center.y+2);ctx.fillStyle=tc.legend;ctx.font='400 8.5px Segoe UI, sans-serif';ctx.fillText('kg',center.x,center.y+18);ctx.restore();}};
-    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{type:'doughnut',data:{labels:cofillLabels,datasets:[{data:cofillValues,backgroundColor:displayColors,borderColor:tc.cardBg,borderWidth:3,hoverOffset:5,offset:context=>selectedAccount!=='all'&&source.accounts[context.dataIndex]===selectedAccount?7:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'64%',plugins:{legend:{display:false},tooltip:{...tooltip,callbacks:{label:context=>`${context.label}: ${fmtFull(context.raw)} kg`}}}},plugins:[centerLabel]});
+    const outsideLabels={id:'cofillOutsideLabels',afterDatasetsDraw(chart){const meta=chart.getDatasetMeta(0),{ctx,chartArea}=chart;ctx.save();meta.data.forEach((arc,index)=>{const value=Number(cofillValues[index]||0);if(value<=0)return;const pct=currentStock?value/currentStock*100:0,angle=(arc.startAngle+arc.endAngle)/2,cos=Math.cos(angle),sin=Math.sin(angle);const startX=arc.x+cos*arc.outerRadius,startY=arc.y+sin*arc.outerRadius;const bendX=arc.x+cos*(arc.outerRadius+9),bendY=arc.y+sin*(arc.outerRadius+9);const endX=Math.max(chartArea.left+6,Math.min(chartArea.right-6,bendX+(cos>=0?12:-12)));ctx.strokeStyle=cofillColors[index];ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(startX,startY);ctx.lineTo(bendX,bendY);ctx.lineTo(endX,bendY);ctx.stroke();ctx.fillStyle=tc.legend;ctx.font='600 8.5px Segoe UI, sans-serif';ctx.textAlign=cos>=0?'left':'right';ctx.textBaseline='bottom';ctx.fillText(`${fmt(value)} kg`,endX+(cos>=0?3:-3),bendY-1);ctx.fillStyle=tc.tick;ctx.font='400 8px Segoe UI, sans-serif';ctx.textBaseline='top';ctx.fillText(`${pct.toFixed(1)}%`,endX+(cos>=0?3:-3),bendY+1);});ctx.restore();}};
+    this.charts.opsCofill=new Chart(document.getElementById('opsCofillChart'),{type:'doughnut',data:{labels:cofillLabels,datasets:[{data:cofillValues,backgroundColor:displayColors,borderColor:tc.cardBg,borderWidth:3,hoverOffset:5,offset:context=>selectedAccount!=='all'&&source.accounts[context.dataIndex]===selectedAccount?7:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'64%',layout:{padding:{top:26,right:42,bottom:26,left:42}},plugins:{legend:{display:false},tooltip:{...tooltip,callbacks:{label:context=>`${context.label}: ${fmtFull(context.raw)} kg`}}}},plugins:[centerLabel,outsideLabels]});
 
     const cleanSales={...cleanHorizontal,scales:{x:{beginAtZero:true,ticks:{display:false},border:{display:false},grid:{display:false}},y:{ticks:{color:tc.tick,font:{size:8.5}},border:{display:false},grid:{display:false}}}};
     const salesChart=(id,entries)=>new Chart(document.getElementById(id),{type:'bar',data:{labels:entries.map(entry=>entry[0]),datasets:[{label:'Qty sold',data:entries.map(entry=>entry[1]),backgroundColor:chartAccent,borderColor:chartAccent,borderWidth:1,borderRadius:5,barPercentage:.72,categoryPercentage:.82}]},options:cleanSales,plugins:[horizontalLabels]});
